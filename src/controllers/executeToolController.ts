@@ -1,26 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import * as utilityService from '../services/utilityService';
 import { 
-    // ApiTool, 
-    // ApiToolInfo, 
-    // ExecuteToolPayload, // Review if this payload structure is still optimal or if direct params are fine
     AgentServiceCredentials, 
     ApiToolExecutionResponse, 
     ErrorResponse, 
     SuccessResponse, 
-    // UtilitySecretType,
-    // UtilityProvider
-    // NO SecuritySchemeObject import from @agent-base/types
+    ExecuteToolPayload
 } from '@agent-base/types'; 
 import { getAuthHeadersFromAgent } from '@agent-base/api-client';
-// SecuritySchemeObject is imported ONLY from openapi3-ts/oas30
-// import { OpenAPIObject, SecuritySchemeObject } from 'openapi3-ts/oas30'; // Not used in executeTool
-
-// Assuming ExecuteToolPayload might be defined like this or passed flatly
-interface ExecuteToolPayload {
-    conversationId: string;
-    params: Record<string, any>;
-}
 
 /**
  * Controller to execute a specific API tool.

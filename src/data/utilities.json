@@ -552,5 +552,44 @@
         "X-Crisp-Tier": "plugin"
       }
     }
+  },
+  {
+    "id": "my-test-tool",
+    "utilityProvider": "example_provider",
+    "description": "A simple test tool that echoes a query parameter to httpbin.org.",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The message to send."
+        }
+      },
+      "required": [
+        "message"
+      ]
+    },
+    "authMethod": "API_KEY",
+    "apiKeyDetails": {
+      "secretName": "TEST_TOOL_API_KEY",
+      "scheme": "HEADER",
+      "headerName": "X-Custom-ApiKey"
+    },
+    "requiredSecrets": [
+      "TEST_TOOL_API_KEY"
+    ],
+    "apiDetails": {
+      "method": "GET",
+      "baseUrl": "https://httpbin.org",
+      "pathTemplate": "/get",
+      "paramMappings": {
+        "query": {
+          "message": "message_param"
+        }
+      },
+      "staticHeaders": {
+        "X-Source": "ApiToolBackendTest"
+      }
+    }
   }
 ]

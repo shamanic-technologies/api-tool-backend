@@ -27,14 +27,7 @@ import { readUtilities, writeUtilities } from './databaseService';
 // import { checkAuth, CheckAuthResultData } from '../clients/toolAuthServiceClient';
 // Import the new execution handler
 import { handleExecution } from './executionService';
-import { getOperation } from './utils'; // For deriving schema for ApiToolInfo
-import { deriveSchemaFromOperation } from './validationService'; // To derive schema for ApiToolInfo
-
-// Path to the mock database file - REMOVED
-
-// Helper functions read/write utilities - REMOVED
-
-// Initialize AJV - REMOVED (moved to executionService)
+import { getOperation, deriveSchemaFromOperation } from './utils'; // For deriving schema for ApiToolInfo
 
 /**
  * Represents a summary of an API tool for listing.
@@ -176,7 +169,3 @@ export const runToolExecution = async (
         return errorResponse;
     }
 };
-
-// REMOVED: validateInputParameters function (moved)
-// REMOVED: checkPrerequisites function (moved)
-// REMOVED: makeApiCall function (moved) 

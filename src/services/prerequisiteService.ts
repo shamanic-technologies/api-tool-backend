@@ -30,20 +30,6 @@ import { getSecretApiClient } from '@agent-base/api-client';
 import { getOperation } from './utils'; // Import from utils
 
 /**
- * Generates a secret key name based on the OpenAPI security scheme name and item type.
- * e.g., schemeName='ApiKeyAuth', itemType='apiKey' -> 'ApiKeyAuth-apiKey'
- * @param {string} schemeName The name of the security scheme from OpenAPI.
- * @param {'apiKey' | 'username' | 'password' | 'bearerToken'} itemType The type of the auth item.
- * @returns {string} The generated secret key name.
- */
-const generateSecretKeyName = (
-    schemeName: string, 
-    itemType: 'apiKey' | 'username' | 'password' | 'bearerToken'
-): string => {
-    return `${schemeName}-${itemType}`;
-};
-
-/**
  * Checks prerequisites (Secrets, OAuth) based on the ApiTool's OpenAPI specification.
  * @param {ApiTool} apiTool The API tool configuration.
  * @param {AgentServiceCredentials} agentServiceCredentials Credentials for the agent.

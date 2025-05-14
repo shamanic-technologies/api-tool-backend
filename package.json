@@ -1,0 +1,49 @@
+{
+  "name": "@shamanic-technologies/api-tool-backend",
+  "version": "0.1.0",
+  "private": false,
+  "description": "A backend service providing API tool functionalities.",
+  "author": "Shamanic Technologies <contact@shamanic.tech>",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint . --ext .ts",
+    "clean": "rm -rf dist node_modules"
+  },
+  "dependencies": {
+    "@agent-base/api-client": "^0.27.0",
+    "@agent-base/types": "^0.27.0",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "axios": "^1.9.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "json-schema": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.1",
+    "@types/json-schema": "^7.0.15",
+    "@types/node": "^22.15.17",
+    "eslint": "^9.26.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  },
+  "keywords": [
+    "api",
+    "tool",
+    "backend",
+    "shamanic-technologies"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shamanic-technologies/api-tool-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/shamanic-technologies/api-tool-backend/issues"
+  },
+  "homepage": "https://github.com/shamanic-technologies/api-tool-backend#readme"
+}

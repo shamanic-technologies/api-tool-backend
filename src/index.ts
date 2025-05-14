@@ -37,7 +37,7 @@ app.get('/health', (req: Request, res: Response) => {
 
 // Routes
 // Mount utility routes under '/api/tools' path
-app.use('/api/tools', utilityRoutes);
+app.use('/api/v1', utilityRoutes);
 
 // Global Error Handler (very basic)
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

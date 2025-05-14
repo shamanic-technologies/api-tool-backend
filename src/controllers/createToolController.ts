@@ -2,18 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import * as utilityService from '../services/utilityService';
 import { 
     ApiTool, 
-    // ApiToolInfo, 
-    // ExecuteToolPayload, 
-    // AgentServiceCredentials, 
-    // ApiToolExecutionResponse, 
-    // ErrorResponse, 
-    // SuccessResponse, 
-    UtilitySecretType,
     UtilityProvider
-    // NO SecuritySchemeObject import from @agent-base/types
 } from '@agent-base/types'; 
-// import { getAuthHeadersFromAgent } from '@agent-base/api-client'; // Not used in createTool
-// SecuritySchemeObject is imported ONLY from openapi3-ts/oas30
 import { OpenAPIObject, SecuritySchemeObject } from 'openapi3-ts/oas30'; // For validating openapiSpecification structure
 
 /**
@@ -173,7 +163,14 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
 
         console.log(`[API Tool Service] Creating tool with ID: ${newApiTool.id}`);
         const createdTool = await utilityService.addNewTool(newApiTool);
-        res.status(201).json({ success: true, data: createdTool });
+        res.status(201).json({ 
+            success: true, 
+            data: createdTool,
+            hint: `Now execute the tool using the execute_api_tool utility.
+            If any, the required secrets will be prompted automatically to the user in a secured form within the chat.
+            The agent (you) won't have access to the user secrets, but they will be stored securely for future uses.
+            Every tool call you make, the secrets are retrieved in the backend to perform the request.`
+        });
 
     } catch (error) {
         if (error instanceof Error && error.message.includes('already exists')) {

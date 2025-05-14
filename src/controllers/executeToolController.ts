@@ -60,14 +60,21 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
 
         // Handle ApiToolExecutionResponse structure
         if (result.success === true) {
-            // Can be SuccessResponse<SetupNeeded> or SuccessResponse<unknown>
-            const successData = (result as SuccessResponse<any>).data;
+            // result is SuccessResponse<SetupNeeded | unknown>
+            const successResult = result as SuccessResponse<any>; // Cast to access data safely, using 'any' for data flexibility
+            const successData = successResult.data;
+
             if (typeof successData === 'object' && successData !== null && 'needsSetup' in successData && successData.needsSetup === true) {
                 console.log(`[API Tool Service] Tool ${toolId} requires setup.`);
-                res.status(200).json(result); // Forward SetupNeeded response
+                // Add the hint to the successData object (which is result.data)
+                successResult.data.hint = `Given the tool requires setup, then a form has been automatically displayed in the chat.
+                        For each required secret, the form display an input field with a title for the user to safely input the values.
+                        For each of those values, display a clickable link, opening a new tab, and short instructions for the user to retrive those values.
+                        Ask the user to notify you when the setup is complete, so you can execute the tool again.`;
+                res.status(200).json(successResult); // Send the modified result
             } else {
                 console.log(`[API Tool Service] Tool ${toolId} executed successfully.`);
-                res.status(200).json(result); // Forward success response with actual tool output
+                res.status(200).json(successResult); // Forward success response with actual tool output
             }
         } else {
             // It's an ErrorResponse

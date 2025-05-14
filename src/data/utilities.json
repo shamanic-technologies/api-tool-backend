@@ -105,5 +105,100 @@
     "securitySecrets": {
       "x-secret-username": "STRIPE_API_KEY_TEST"
     }
+  },
+  {
+    "id": "chargebee_list_refunds",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_key"
+    },
+    "utilityProvider": "custom_api",
+    "openapiSpecification": {
+      "info": {
+        "title": "Chargebee List Refunds",
+        "version": "v1",
+        "description": "Récupère la liste des transactions de remboursement (refunds) dans Chargebee"
+      },
+      "paths": {
+        "/api/v2/transactions": {
+          "get": {
+            "summary": "Liste des remboursements Chargebee",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "transaction": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "Liste des transactions de remboursement"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100
+                },
+                "description": "Nombre maximum de résultats à retourner"
+              },
+              {
+                "in": "query",
+                "name": "type[is]",
+                "schema": {
+                  "type": "string",
+                  "default": "refund"
+                },
+                "description": "Type de transaction à filtrer (refund pour les remboursements)"
+              }
+            ],
+            "operationId": "listRefunds"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Authentification API Chargebee (clé API en tant qu'identifiant, mot de passe vide)"
+          }
+        }
+      },
+      "servers": [
+        {
+          "url": "https://{site}.chargebee.com",
+          "variables": {
+            "site": {
+              "default": "reesai",
+              "description": "Le nom de votre site Chargebee"
+            }
+          }
+        }
+      ]
+    }
   }
 ]

@@ -30,14 +30,14 @@ app.use(express.json()); // Parse JSON bodies
 
 // ===== HEALTH CHECK ROUTE =====
 app.get('/health', (req: Request, res: Response) => {
-  console.log('[External Utility Tool Service] Received request for /health');
+  console.log('[API Tool Service] Received request for /health');
   res.status(200).json({ success: true, status: 'healthy', message: 'Api Tool Service is running' });
 });
 // ============================
 
 // Routes
-// Mount utility routes directly at the root path '/'
-app.use('/', utilityRoutes);
+// Mount utility routes under '/api/tools' path
+app.use('/api/tools', utilityRoutes);
 
 // Global Error Handler (very basic)
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {

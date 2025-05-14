@@ -1,121 +1,239 @@
-import axios from 'axios';
-import { Buffer } from 'buffer'; // Import Buffer for Basic Auth
+import axios, { AxiosRequestConfig, Method } from 'axios';
+import { Buffer } from 'buffer';
+import { ApiTool } from '@agent-base/types';
 import { 
-    ExternalUtilityTool, 
-    AuthMethod, 
-    ApiKeyAuthScheme, 
-    HttpMethod // Assuming HttpMethod might be needed if method is validated
-} from '@agent-base/types';
+    OpenAPIObject, 
+    OperationObject, 
+    ParameterObject, 
+    RequestBodyObject, 
+    SchemaObject, 
+    ReferenceObject,
+    ServerObject,
+    SecuritySchemeObject
+} from 'openapi3-ts/oas30';
+import { getOperation } from './utils'; // Assuming getOperation is in a shared utils.ts
 
 /**
- * Makes the actual API call based on the tool configuration.
- * @param config The tool configuration.
- * @param params The validated input parameters.
- * @param credentials The fetched credentials (API key or OAuth token).
- * @param logPrefix Logging prefix.
- * @returns The data from the API response.
- * @throws Throws an error if the API call fails.
+ * Makes an API call based on the ApiTool's OpenAPI specification.
+ * @param {ApiTool} apiTool The API tool configuration with OpenAPI spec.
+ * @param {Record<string, any>} validatedParams The validated input parameters (flat structure).
+ * @param {Record<string, string | null>} credentials Fetched credentials (API keys, tokens), keyed by security scheme name or derived name.
+ * @param {string} logPrefix Logging prefix.
+ * @returns {Promise<any>} The data from the API response.
+ * @throws Throws an error if the API call fails or the spec is insufficient.
  */
 export const makeApiCall = async (
-    config: ExternalUtilityTool, 
-    params: Record<string, any>,
-    credentials: { apiKey?: string | null; oauthToken?: string | null }, 
+    apiTool: ApiTool, 
+    validatedParams: Record<string, any>,
+    credentials: Record<string, string | null>, 
     logPrefix: string
 ): Promise<any> => {
-    if (!config.apiDetails) throw new Error("makeApiCall called without apiDetails in config");
+    const openapiSpec = apiTool.openapiSpecification;
+    const operation = getOperation(openapiSpec, logPrefix);
 
-    const { method, baseUrl, pathTemplate, paramMappings, staticHeaders } = config.apiDetails;
-    let url = baseUrl + pathTemplate;
+    if (!operation) {
+        throw new Error(`${logPrefix} Could not determine operation from OpenAPI spec.`);
+    }
+
+    // Determine HTTP Method (e.g., 'get', 'post')
+    // This requires finding which key in the PathItemObject corresponds to the operation.
+    // We assume getOperation is robust or this was pre-validated.
+    let httpMethod: string = '';
+    const pathItemObject = openapiSpec.paths[Object.keys(openapiSpec.paths)[0]]; // Assuming single path
+    for (const m of ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']) {
+        if (pathItemObject[m as keyof typeof pathItemObject] === operation) {
+            httpMethod = m;
+            break;
+        }
+    }
+    if (!httpMethod) {
+        throw new Error(`${logPrefix} Could not determine HTTP method for the operation.`);
+    }
+
+    // Determine Base URL from servers object (use the first one if multiple)
+    let baseUrl = '';
+    if (openapiSpec.servers && openapiSpec.servers.length > 0) {
+        // TODO: Handle server variables if present in openapiSpec.servers[0].variables
+        baseUrl = openapiSpec.servers[0].url;
+    } else {
+        // Fallback or error if no server is defined - this should be validated upfront ideally
+        console.warn(`${logPrefix} No servers defined in OpenAPI spec. Attempting to proceed without a base URL.`);
+        // throw new Error(`${logPrefix} No servers defined in OpenAPI spec.`);
+    }
+
+    // Path (template)
+    const pathTemplate = Object.keys(openapiSpec.paths)[0]; // Assuming single path
+
+    const headers: Record<string, string> = {};
     const queryParams: Record<string, string> = {};
-    let requestBody: any = null;
-    const headers: Record<string, string> = { ...staticHeaders };
+    let finalUrl = baseUrl + pathTemplate;
+    let requestBodyForCall: any = undefined;
 
-    // 1. Populate Path Parameters
-    if (paramMappings?.path) {
-        for (const [schemaKey, placeholder] of Object.entries(paramMappings.path)) {
-            if (!params[schemaKey]) throw new Error(`Missing required path parameter: ${schemaKey}`);
-            url = url.replace(`{${placeholder}}`, encodeURIComponent(params[schemaKey]));
+    // Process parameters (path, query, header)
+    if (operation.parameters) {
+        for (const param of operation.parameters) {
+            let parameterObject: ParameterObject;
+            if ((param as ReferenceObject).$ref) {
+                // Basic $ref resolution for parameters (components/parameters)
+                const refPath = (param as ReferenceObject).$ref;
+                if (refPath.startsWith('#/components/parameters/')) {
+                    const paramName = refPath.substring('#/components/parameters/'.length);
+                    const resolvedParam = openapiSpec.components?.parameters?.[paramName];
+                    if (!resolvedParam || (resolvedParam as ReferenceObject).$ref) { /* error or skip */ continue; }
+                    parameterObject = resolvedParam as ParameterObject;
+                } else { /* error or skip */ continue; }
+            } else {
+                parameterObject = param as ParameterObject;
+            }
+
+            const paramValue = validatedParams[parameterObject.name];
+            if (paramValue === undefined && parameterObject.required) {
+                throw new Error(`${logPrefix} Missing required parameter: ${parameterObject.name}`);
+            }
+            if (paramValue === undefined) continue;
+
+            switch (parameterObject.in) {
+                case 'path':
+                    finalUrl = finalUrl.replace(`{${parameterObject.name}}`, encodeURIComponent(String(paramValue)));
+                    break;
+                case 'query':
+                    // TODO: Handle complex serialization (style, explode) if necessary. Axios handles simple cases.
+                    queryParams[parameterObject.name] = String(paramValue);
+                    break;
+                case 'header':
+                    headers[parameterObject.name] = String(paramValue);
+                    break;
+                // 'cookie' parameters are less common for server-to-server, skipping for now.
+            }
         }
     }
 
-    // 2. Populate Query Parameters
-    if (paramMappings?.query) {
-        for (const [schemaKey, queryConfig] of Object.entries(paramMappings.query)) {
-            const paramValue = params[schemaKey];
-            if (paramValue !== undefined && paramValue !== null) {
-                let targetName: string;
-                let value: any = paramValue;
-                if (typeof queryConfig === 'string') {
-                    targetName = queryConfig;
+    // Process requestBody
+    if (operation.requestBody) {
+        let requestBodyObject: RequestBodyObject;
+        if ((operation.requestBody as ReferenceObject).$ref) {
+            const refPath = (operation.requestBody as ReferenceObject).$ref;
+             if (refPath.startsWith('#/components/requestBodies/')) {
+                const rbName = refPath.substring('#/components/requestBodies/'.length);
+                const resolvedRb = openapiSpec.components?.requestBodies?.[rbName];
+                if (!resolvedRb || (resolvedRb as ReferenceObject).$ref) {throw new Error("Invalid ref for req body");}
+                requestBodyObject = resolvedRb as RequestBodyObject;
+            } else { throw new Error("Invalid ref for req body"); }
                 } else {
-                    const configObj = queryConfig as { target: string, transform?: 'joinComma' };
-                    targetName = configObj.target;
-                    if (configObj.transform === 'joinComma' && Array.isArray(value)) {
-                        value = value.join(',');
+            requestBodyObject = operation.requestBody as RequestBodyObject;
+        }
+
+        // Assume application/json, or the first one defined.
+        // More robust logic would check available content types.
+        const contentType = Object.keys(requestBodyObject.content)[0] || 'application/json';
+        headers['Content-Type'] = contentType;
+
+        const mediaTypeObject = requestBodyObject.content[contentType];
+        if (mediaTypeObject && mediaTypeObject.schema) {
+            // Construct the actual request body based on validatedParams and the schema
+            // If schema is {type: object, properties: {...}}, filter validatedParams to include only these properties
+            let schemaForBody = mediaTypeObject.schema;
+            if((schemaForBody as ReferenceObject).$ref){
+                const refPath = (schemaForBody as ReferenceObject).$ref;
+                if (refPath.startsWith('#/components/schemas/')) {
+                    const schemaName = refPath.substring('#/components/schemas/'.length);
+                    const resolvedSchema = openapiSpec.components?.schemas?.[schemaName];
+                    if (!resolvedSchema || (resolvedSchema as ReferenceObject).$ref) { /* error */ throw new Error("Invalid schema ref");}
+                    schemaForBody = resolvedSchema as SchemaObject;
+                } else { /* error */ throw new Error("Invalid schema ref path"); }
+            }
+
+            if ((schemaForBody as SchemaObject).type === 'object' && (schemaForBody as SchemaObject).properties) {
+                requestBodyForCall = {};
+                for (const propName in (schemaForBody as SchemaObject).properties) {
+                    if (validatedParams.hasOwnProperty(propName)) {
+                        requestBodyForCall[propName] = validatedParams[propName];
                     }
                 }
-                queryParams[targetName] = String(value);
+            } else {
+                // If schema is not an object or has no properties (e.g. direct scalar, array, or any type)
+                // This part might need refinement based on how such body schemas are represented in validatedParams.
+                // For now, we assume if it's not an object with properties, validatedParams itself might be the body
+                // if it matches the schema type, or a specific key in validatedParams holds the body.
+                // This is a simplification; a more robust solution handles various schema types for direct body.
+                requestBodyForCall = validatedParams; // This is a broad assumption!
             }
         }
     }
 
-    // 3. Populate Body Parameters (assuming JSON body)
-    if (paramMappings?.body) {
-        requestBody = {};
-        for (const [schemaKey, bodyFieldUntyped] of Object.entries(paramMappings.body)) {
-            const bodyField = String(bodyFieldUntyped);
-            const paramValue = params[schemaKey];
-            if (paramValue !== undefined && paramValue !== null) {
-                requestBody[bodyField] = params[schemaKey];
-            }
+    // Apply Authentication from credentials
+    const securityRequirements = operation.security && operation.security.length > 0 ? operation.security[0] : {};
+    for (const schemeName in securityRequirements) {
+        const securitySchemeRef = openapiSpec.components?.securitySchemes?.[schemeName];
+        if (!securitySchemeRef) continue;
+
+        let securityScheme: SecuritySchemeObject;
+        if((securitySchemeRef as ReferenceObject).$ref){
+             const refPath = (securitySchemeRef as ReferenceObject).$ref;
+             if (refPath.startsWith('#/components/securitySchemes/')) {
+                const actualSchemeName = refPath.substring('#/components/securitySchemes/'.length);
+                const resolvedScheme = openapiSpec.components?.securitySchemes?.[actualSchemeName];
+                if (!resolvedScheme || (resolvedScheme as ReferenceObject).$ref) continue;
+                securityScheme = resolvedScheme as SecuritySchemeObject;
+            } else continue;
+        } else {
+            securityScheme = securitySchemeRef as SecuritySchemeObject;
+        }
+
+        const credentialValue = credentials[schemeName]; // General case for token-like schemes
+        const username = credentials[schemeName + '_username'];
+        const password = credentials[schemeName + '_password'];
+
+        switch (securityScheme.type) {
+            case 'apiKey':
+                if (credentialValue) {
+                    if (!securityScheme.name) {
+                        console.error(`${logPrefix} API key security scheme '${schemeName}' is missing required 'name' property.`);
+                        // Optionally throw an error or skip this scheme
+                break;
+                    }
+                    if (securityScheme.in === 'header') {
+                        headers[securityScheme.name] = credentialValue;
+                    } else if (securityScheme.in === 'query') {
+                        queryParams[securityScheme.name] = credentialValue;
+                    } // 'cookie' not handled here
+                }
+                break;
+            case 'http':
+                if (securityScheme.scheme?.toLowerCase() === 'bearer' && credentialValue) {
+                    headers['Authorization'] = `Bearer ${credentialValue}`;
+                }
+                if (securityScheme.scheme?.toLowerCase() === 'basic' && username) {
+                    const effectivePassword = password || ""; // Default password to empty string if null/undefined/empty
+                    headers['Authorization'] = `Basic ${Buffer.from(`${username}:${effectivePassword}`).toString('base64')}`;
+                }
+                break;
+            // OAuth2 would typically result in a bearer token, handled by http bearer or a specific credential if needed.
+            // OpenIDConnect also not handled here for brevity.
         }
     }
 
-    // 4. Add Authentication Header
-    if (config.authMethod === AuthMethod.OAUTH) {
-        if (!credentials.oauthToken) throw new Error("OAuth token missing for API call");
-        headers['Authorization'] = `Bearer ${credentials.oauthToken}`;
-    } else if (config.authMethod === AuthMethod.API_KEY) {
-        if (!credentials.apiKey || !config.apiKeyDetails) throw new Error("API key or details missing for API call");
-        const { scheme, headerName } = config.apiKeyDetails;
-        switch (scheme) {
-            case ApiKeyAuthScheme.BEARER:
-                headers['Authorization'] = `Bearer ${credentials.apiKey}`;
-                break;
-            case ApiKeyAuthScheme.BASIC_USER:
-                headers['Authorization'] = `Basic ${Buffer.from(`${credentials.apiKey}:`).toString('base64')}`;
-                break;
-            case ApiKeyAuthScheme.BASIC_PASS:
-                 headers['Authorization'] = `Basic ${Buffer.from(`:${credentials.apiKey}`).toString('base64')}`;
-                 break;
-            case ApiKeyAuthScheme.HEADER:
-                if (!headerName) throw new Error("Header name missing for API key scheme 'Header'");
-                headers[headerName] = credentials.apiKey;
-                break;
-            default:
-                 throw new Error(`Unsupported API key scheme: ${scheme}`);
-        }
-    }
+    console.log(`${logPrefix} Making API call: ${httpMethod.toUpperCase()} ${finalUrl}`);
+    if(Object.keys(headers).length > 0) console.log(`${logPrefix} Headers:`, JSON.stringify(headers));
+    if(Object.keys(queryParams).length > 0) console.log(`${logPrefix} Query Params:`, JSON.stringify(queryParams));
+    if(requestBodyForCall !== undefined) console.log(`${logPrefix} Body:`, JSON.stringify(requestBodyForCall));
 
-    console.log(`${logPrefix} Making API call: ${method} ${url}`);
-    console.log(`${logPrefix} Headers:`, headers); // Be careful logging headers in production
-    console.log(`${logPrefix} Query Params:`, queryParams);
-    console.log(`${logPrefix} Body:`, requestBody);
+    const axiosConfig: AxiosRequestConfig = {
+        method: httpMethod as Method,
+        url: finalUrl,
+            params: queryParams,
+        data: requestBodyForCall,
+            headers: headers,
+    };
 
     try {
-        const response = await axios({
-            method: method,
-            url: url,
-            params: queryParams,
-            data: requestBody,
-            headers: headers,
-        });
+        const response = await axios(axiosConfig);
         console.log(`${logPrefix} API response status: ${response.status}`);
         return response.data;
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            console.error(`${logPrefix} Axios error: Status ${error.response?.status}, Data:`, error.response?.data);
+            console.error(`${logPrefix} Axios error making API call: Status ${error.response?.status}, URL: ${error.config?.url}, Response Data:`, error.response?.data);
         }
-        throw error; // Re-throw to be handled by the orchestrator (handleExecution)
+        throw error; // Re-throw to be handled by handleExecution
     }
 }; 

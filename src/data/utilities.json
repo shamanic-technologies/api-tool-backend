@@ -1,595 +1,109 @@
 [
   {
-    "id": "crisp_send_message",
-    "utilityProvider": "crisp",
-    "description": "Envoie un message texte à une conversation Crisp existante",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "L'identifiant du site web Crisp",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "L'identifiant de la session/conversation",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "Le contenu du message texte à envoyer",
-          "examples": [
-            "Merci pour votre message. Je vous réponds dès que possible."
-          ]
-        }
-      }
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_secret_key",
-      "api_identifier"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_secret_key",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "message": "content"
-        }
+    "id": "stripe_list_balance_transactions",
+    "utilityProvider": "STRIPE",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Stripe - List Balance Transactions",
+        "version": "1.0.0",
+        "description": "Returns a list of transactions that have contributed to the Stripe account balance."
       },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_text_message",
-    "utilityProvider": "crisp",
-    "description": "Envoie un message texte à une conversation Crisp existante",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "L'identifiant du site web Crisp",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "L'identifiant de la session/conversation",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "Le contenu du message texte à envoyer",
-          "examples": [
-            "Merci pour votre message. Je vous réponds dès que possible."
-          ]
+      "servers": [
+        {
+          "url": "https://api.stripe.com"
         }
-      }
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_secret_key",
-      "api_identifier"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_secret_key",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_text_message_complete",
-    "utilityProvider": "crisp",
-    "description": "Envoie un message texte à une conversation Crisp existante",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "L'identifiant du site web Crisp",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "L'identifiant de la session/conversation",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "Le contenu du message texte à envoyer",
-          "examples": [
-            "Merci pour votre message. Je vous réponds dès que possible."
-          ]
-        }
-      }
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_secret_key",
-      "api_identifier"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_secret_key",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_text_message_final",
-    "utilityProvider": "crisp",
-    "description": "Envoie un message texte à une conversation Crisp existante",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "L'identifiant du site web Crisp",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "L'identifiant de la session/conversation",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "Le contenu du message texte à envoyer",
-          "examples": [
-            "Merci pour votre message. Je vous réponds dès que possible."
-          ]
-        }
-      }
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_secret_key",
-      "api_identifier"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_secret_key",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "type": "text",
-          "from": "operator",
-          "origin": "chat",
-          "content": "message"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_message_new",
-    "utilityProvider": "crisp",
-    "description": "Sends a text message to an existing Crisp conversation",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "The Crisp website ID",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "The Crisp session/conversation ID",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "The text message content to send",
-          "examples": [
-            "Thank you for your message. I'll respond as soon as possible."
-          ]
-        }
-      },
-      "required": [
-        "website_id",
-        "session_id",
-        "message"
-      ]
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_identifier",
-      "api_secret_key"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_identifier",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "type": "text",
-          "from": "operator",
-          "origin": "chat",
-          "content": "message"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_message_correct",
-    "utilityProvider": "crisp",
-    "description": "Sends a text message to an existing Crisp conversation",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "The Crisp website ID",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "The Crisp session/conversation ID",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "The text message content to send",
-          "examples": [
-            "Thank you for your message. I'll respond as soon as possible."
-          ]
-        }
-      },
-      "required": [
-        "website_id",
-        "session_id",
-        "message"
-      ]
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_identifier",
-      "api_secret_key"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_identifier",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "type": "text",
-          "from": "operator",
-          "origin": "chat",
-          "content": "message"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_send_message_auth",
-    "utilityProvider": "crisp",
-    "description": "Sends a text message to an existing Crisp conversation with proper authentication",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "The Crisp website ID",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "The Crisp session/conversation ID",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "The text message content to send",
-          "examples": [
-            "Thank you for your message. I'll respond as soon as possible."
-          ]
-        }
-      },
-      "required": [
-        "website_id",
-        "session_id",
-        "message"
-      ]
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_identifier",
-      "api_secret_key"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_identifier",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "type": "text",
-          "from": "operator",
-          "origin": "chat",
-          "content": "message"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "crisp_reply",
-    "schema": {
-      "type": "object",
-      "required": [
-        "website_id",
-        "session_id",
-        "message"
       ],
-      "properties": {
-        "message": {
-          "type": "string",
-          "examples": [
-            "Merci pour votre message. Je vous réponds dès que possible."
-          ],
-          "description": "Le contenu du message texte à envoyer"
-        },
-        "session_id": {
-          "type": "string",
-          "examples": [
-            "session_700c65e1-85e2-465a-b9ac-ecb5ec2c9881"
-          ],
-          "description": "L'identifiant de la session/conversation"
-        },
-        "website_id": {
-          "type": "string",
-          "examples": [
-            "8c842203-7ed8-4e29-a608-7cf78a7d2fcc"
-          ],
-          "description": "L'identifiant du site web Crisp"
-        }
-      }
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "body": {
-          "type": "text",
-          "from": "operator",
-          "origin": "chat",
-          "content": "message"
-        },
-        "path": {
-          "session_id": "session_id",
-          "website_id": "website_id"
-        }
-      },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    },
-    "authMethod": "API_KEY",
-    "description": "Envoie un message texte à une conversation Crisp existante",
-    "apiKeyDetails": {
-      "scheme": "BasicUser",
-      "secretName": "api_identifier"
-    },
-    "requiredSecrets": [
-      "api_identifier",
-      "api_secret_key"
-    ],
-    "utilityProvider": "crisp"
-  },
-  {
-    "id": "crisp_reply_to_message",
-    "utilityProvider": "crisp",
-    "description": "Replies to a message in a Crisp conversation",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "website_id": {
-          "type": "string",
-          "description": "The Crisp website ID",
-          "examples": [
-            "b65cba08-5896-4142-b94b-d25fcf2bad90"
-          ]
-        },
-        "session_id": {
-          "type": "string",
-          "description": "The Crisp session ID",
-          "examples": [
-            "session_a01ae9b5-c50a-457b-8e3e-8bb50f5d53c4"
-          ]
-        },
-        "message": {
-          "type": "string",
-          "description": "The message to send",
-          "examples": [
-            "Hello! How can I help you today?"
-          ]
-        }
-      }
-    },
-    "authMethod": "API_KEY",
-    "requiredSecrets": [
-      "api_identifier",
-      "api_secret_key"
-    ],
-    "apiKeyDetails": {
-      "secretName": "api_identifier",
-      "scheme": "BasicUser"
-    },
-    "apiDetails": {
-      "method": "POST",
-      "baseUrl": "https://api.crisp.chat/v1",
-      "pathTemplate": "/website/{website_id}/conversation/{session_id}/message",
-      "paramMappings": {
-        "path": {
-          "website_id": "website_id",
-          "session_id": "session_id"
-        },
-        "body": {
-          "type": "'text'",
-          "from": "'operator'",
-          "origin": "'chat'",
-          "content": "message"
+      "paths": {
+        "/v1/balance_transactions": {
+          "get": {
+            "summary": "List all balance transactions",
+            "operationId": "listBalanceTransactions",
+            "parameters": [
+              {
+                "name": "limit",
+                "in": "query",
+                "description": "A limit on the number of objects to be returned. Limit can range between 1 and 100, and the default is 10.",
+                "required": false,
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100,
+                  "default": 10
+                }
+              },
+              {
+                "name": "starting_after",
+                "in": "query",
+                "description": "A cursor for use in pagination.",
+                "required": false,
+                "schema": {
+                  "type": "string"
+                }
+              },
+              {
+                "name": "ending_before",
+                "in": "query",
+                "description": "A cursor for use in pagination.",
+                "required": false,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            ],
+            "security": [
+              {
+                "stripeApiKey": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "A list of balance transactions.",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "object": {
+                          "type": "string"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        },
+                        "url": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "401": {
+                "description": "Unauthorized - API key is wrong or missing."
+              }
+            }
+          }
         }
       },
-      "staticHeaders": {
-        "Content-Type": "application/json",
-        "X-Crisp-Tier": "plugin"
-      }
-    }
-  },
-  {
-    "id": "my-test-tool",
-    "utilityProvider": "example_provider",
-    "description": "A simple test tool that echoes a query parameter to httpbin.org.",
-    "schema": {
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "description": "The message to send."
+      "components": {
+        "securitySchemes": {
+          "stripeApiKey": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Stripe API Key used as the username in HTTP Basic Authentication."
+          }
         }
-      },
-      "required": [
-        "message"
-      ]
-    },
-    "authMethod": "API_KEY",
-    "apiKeyDetails": {
-      "secretName": "TEST_TOOL_API_KEY",
-      "scheme": "HEADER",
-      "headerName": "X-Custom-ApiKey"
-    },
-    "requiredSecrets": [
-      "TEST_TOOL_API_KEY"
-    ],
-    "apiDetails": {
-      "method": "GET",
-      "baseUrl": "https://httpbin.org",
-      "pathTemplate": "/get",
-      "paramMappings": {
-        "query": {
-          "message": "message_param"
-        }
-      },
-      "staticHeaders": {
-        "X-Source": "ApiToolBackendTest"
       }
+    },
+    "securityOption": "stripeApiKey",
+    "securitySecrets": {
+      "x-secret-username": "STRIPE_API_KEY_TEST"
     }
   }
 ]

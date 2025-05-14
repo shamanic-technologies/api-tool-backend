@@ -5,19 +5,21 @@ import path from 'path';
 // import Ajv, { ErrorObject } from 'ajv';
 // const addFormats = require('ajv-formats'); 
 import {
-    ExternalUtilityExecutionResponse,
-    // UtilitySecret, // No longer needed directly here
-    // AuthMethod, // No longer needed directly here
-    // ApiKeyAuthScheme, // No longer needed directly here
-    ExternalUtilityTool,
-    ExternalUtilityInfo,
-    UtilitiesList,
-    UtilitiesListItem,
+    // ExternalUtilityExecutionResponse, // Removed
+    // ExternalUtilityTool, // Removed
+    // ExternalUtilityInfo, // Removed
+    // UtilitiesList,       // Removed
+    // UtilitiesListItem,   // Removed
+    ApiToolExecutionResponse, // Keep
+    ApiTool,            // Keep
     SuccessResponse,
     ErrorResponse,
     AgentServiceCredentials,
-    // SetupNeededData // No longer needed directly here
+    ApiToolInfo,        // Keep
+    UtilityProvider,    
+    InternalUtilityInfo 
 } from '@agent-base/types';
+import { JSONSchema7 } from 'json-schema'; // For ApiToolInfo schema
 // Import database service functions
 import { readUtilities, writeUtilities } from './databaseService';
 // Remove client imports (handled by executionService)
@@ -25,6 +27,8 @@ import { readUtilities, writeUtilities } from './databaseService';
 // import { checkAuth, CheckAuthResultData } from '../clients/toolAuthServiceClient';
 // Import the new execution handler
 import { handleExecution } from './executionService';
+import { getOperation } from './utils'; // For deriving schema for ApiToolInfo
+import { deriveSchemaFromOperation } from './validationService'; // To derive schema for ApiToolInfo
 
 // Path to the mock database file - REMOVED
 
@@ -32,56 +36,122 @@ import { handleExecution } from './executionService';
 
 // Initialize AJV - REMOVED (moved to executionService)
 
-// Service function to list available tools (simplified: ID and description)
-export const listAvailableTools = async (): Promise<UtilitiesList> => {
+/**
+ * Represents a summary of an API tool for listing.
+ */
+export interface ApiToolListItem {
+    id: string;
+    name: string;
+    description?: string;
+}
+
+/**
+ * Represents a list of API tool summaries.
+ */
+export type ApiToolList = ApiToolListItem[];
+
+/**
+ * Service function to list available API tools (summary: ID, name, description).
+ * @returns {Promise<ApiToolList>} A list of API tool summaries.
+ */
+export const listAvailableTools = async (): Promise<ApiToolList> => {
     const utilities = await readUtilities(); 
-    return utilities.map(tool => ({ id: tool.id, description: tool.description }) as UtilitiesListItem);
+    return utilities.map(tool => ({
+        id: tool.id,
+        name: tool.openapiSpecification.info.title,
+        description: tool.openapiSpecification.info.description || '' // Fallback for undefined
+    }));
 };
 
-// Service function to get tool details (ID, description, schema)
-export const getToolDetails = async (toolId: string): Promise<ExternalUtilityInfo | null> => {
+/**
+ * Service function to get detailed information about a specific API tool.
+ * This includes deriving the JSONSchema7 for its parameters from the OpenAPI spec.
+ * @param {string} toolId The ID of the tool.
+ * @returns {Promise<ApiToolInfo | null>} Detailed tool information or null if not found.
+ */
+export const getToolDetails = async (toolId: string): Promise<ApiToolInfo | null> => {
+    const logPrefix = `[UtilityService GetToolDetails ${toolId}]`;
     const utilities = await readUtilities(); 
     const tool = utilities.find(t => t.id === toolId);
     if (!tool) return null;
-    return tool as ExternalUtilityInfo;
+
+    const operation = getOperation(tool.openapiSpecification, logPrefix);
+    if (!operation) {
+        console.error(`${logPrefix} Could not extract operation to derive schema for ApiToolInfo.`);
+        return {
+            id: tool.id,
+            name: tool.openapiSpecification.info.title,
+            description: tool.openapiSpecification.info.description || '',
+            utilityProvider: tool.utilityProvider,
+            schema: { type: 'object', properties: {}, description: 'Schema derivation failed due to invalid operation in OpenAPI spec' } as JSONSchema7
+        };
+    }
+
+    const derivedSchema = deriveSchemaFromOperation(operation, tool.openapiSpecification, logPrefix);
+    if (!derivedSchema) {
+        console.error(`${logPrefix} Failed to derive schema for ApiToolInfo.`);
+        return {
+            id: tool.id,
+            name: tool.openapiSpecification.info.title,
+            description: tool.openapiSpecification.info.description || '',
+            utilityProvider: tool.utilityProvider,
+            schema: { type: 'object', properties: {}, description: 'Schema derivation failed' } as JSONSchema7
+        };
+    }
+
+    const toolInfo: ApiToolInfo = {
+        id: tool.id,
+        name: tool.openapiSpecification.info.title,
+        description: tool.openapiSpecification.info.description || '',
+        utilityProvider: tool.utilityProvider,
+        schema: derivedSchema
+    };
+    return toolInfo;
 };
 
-// Service function to add a new tool configuration
-export const addNewTool = async (newConfig: ExternalUtilityTool): Promise<ExternalUtilityTool> => {
+/**
+ * Service function to add a new API tool configuration.
+ * @param {ApiTool} newApiTool The new API tool configuration.
+ * @returns {Promise<ApiTool>} The added API tool configuration.
+ * @throws {Error} If a tool with the same ID already exists.
+ */
+export const addNewTool = async (newApiTool: ApiTool): Promise<ApiTool> => {
     const utilities = await readUtilities(); 
-    const existingTool = utilities.find(t => t.id === newConfig.id);
+    const existingTool = utilities.find(t => t.id === newApiTool.id);
     if (existingTool) {
-        throw new Error(`Tool with ID '${newConfig.id}' already exists.`);
+        throw new Error(`Tool with ID '${newApiTool.id}' already exists.`);
     }
-    // TODO: Consider moving config validation here or into a dedicated validation service
-    utilities.push(newConfig);
+    utilities.push(newApiTool);
     await writeUtilities(utilities);
-    return newConfig;
+    return newApiTool;
 };
 
 // --- Tool Execution Logic ---
 
 /**
- * Main service function to execute a tool.
+ * Main service function to execute an API tool.
  * Loads the tool configuration and delegates execution to executionService.
+ * @param {AgentServiceCredentials} agentServiceCredentials Credentials for the agent.
+ * @param {string} toolId The ID of the tool to execute.
+ * @param {string} conversationId The ID of the current conversation.
+ * @param {Record<string, any>} params The input parameters for the tool.
+ * @returns {Promise<ApiToolExecutionResponse>} The result of the tool execution.
  */
 export const runToolExecution = async (
     agentServiceCredentials: AgentServiceCredentials,
     toolId: string,
     conversationId: string,
     params: Record<string, any>
-): Promise<ExternalUtilityExecutionResponse> => {
-    const { clientUserId, platformUserId, platformApiKey, agentId } = agentServiceCredentials;
-    const logPrefix = `[EXECUTE ${toolId}] User: ${clientUserId}`; 
-    console.log(`${logPrefix} Orchestrating execution with params:`, params);
+): Promise<ApiToolExecutionResponse> => {
+    const { clientUserId } = agentServiceCredentials;
+    const logPrefix = `[UtilityService RunTool ${toolId}] User: ${clientUserId}`;
+    console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
 
     try {
-        // 1. Load Tool Configuration
-        const utilities = await readUtilities();
-        const utilityTool = utilities.find(t => t.id === toolId);
-        if (!utilityTool) {
-            console.error(`${logPrefix} Error: Tool config not found.`);
-            // Return specific error if tool config itself is not found
+        const utilities = await readUtilities(); // Returns ApiTool[]
+        const apiTool = utilities.find(t => t.id === toolId);
+        if (!apiTool) {
+            console.error(`${logPrefix} Error: Tool config not found for ID '${toolId}'.`);
             const errorResponse: ErrorResponse = {
                 success: false,
                 error: `Tool configuration with ID '${toolId}' not found.`
@@ -89,21 +159,18 @@ export const runToolExecution = async (
             return errorResponse;
         }
 
-        // 2. Delegate Execution to executionService
         console.log(`${logPrefix} Delegating to handleExecution...`);
-        const result = await handleExecution(agentServiceCredentials, utilityTool, conversationId, params);
+        // handleExecution now expects ApiTool
+        const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params);
         
-        // 3. Return the result from executionService
         console.log(`${logPrefix} Execution handled. Returning result.`);
         return result;
 
     } catch (error) {
-        // Catch errors specifically from loading the config (readUtilities)
-        // Errors from handleExecution should be formatted as ExternalUtilityExecutionResponse already.
-        console.error(`${logPrefix} Error during config loading or unexpected error:`, error);
+        console.error(`${logPrefix} Error during tool execution orchestration:`, error);
         const errorResponse: ErrorResponse = {
             success: false,
-            error: 'Failed to load tool configuration or unexpected error occurred.',
+            error: 'Failed to execute tool due to an unexpected error in utilityService.',
             details: error instanceof Error ? error.message : String(error)
         };
         return errorResponse;

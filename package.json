@@ -15,7 +15,7 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
-    "@agent-base/api-client": "^0.27.0",
+    "@agent-base/api-client": "^0.28.0",
     "@agent-base/types": "^0.27.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

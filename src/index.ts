@@ -28,6 +28,13 @@ const port = process.env.PORT;
 // Middlewares
 app.use(express.json()); // Parse JSON bodies
 
+// ===== HEALTH CHECK ROUTE =====
+app.get('/health', (req: Request, res: Response) => {
+  console.log('[External Utility Tool Service] Received request for /health');
+  res.status(200).json({ success: true, status: 'healthy', message: 'Api Tool Service is running' });
+});
+// ============================
+
 // Routes
 // Mount utility routes directly at the root path '/'
 app.use('/', utilityRoutes);
@@ -39,5 +46,5 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 app.listen(port, () => {
-  console.log(`⚙️ External Utility Tool Service listening on port ${port}`);
+  console.log(`⚙️ Api Tool Service listening on port ${port}`);
 }); 

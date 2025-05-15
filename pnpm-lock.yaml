@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@agent-base/secret-client':
-        specifier: ^0.6.0
-        version: 0.6.0
       ajv:
         specifier: ^8.17.1
         version: 8.17.1
@@ -31,11 +28,14 @@ importers:
         version: 0.4.0
     devDependencies:
       '@agent-base/api-client':
-        specifier: ^0.28.0
-        version: 0.28.0(@agent-base/types@0.32.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)
+        specifier: ^0.29.0
+        version: 0.29.0(@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)
+      '@agent-base/secret-client':
+        specifier: ^0.7.0
+        version: 0.7.0(react@19.1.0)(zod@3.24.4)
       '@agent-base/types':
-        specifier: ^0.32.0
-        version: 0.32.0(react@19.1.0)(zod@3.24.4)
+        specifier: ^0.33.0
+        version: 0.33.0(react@19.1.0)(zod@3.24.4)
       '@types/express':
         specifier: ^5.0.1
         version: 5.0.1
@@ -60,17 +60,17 @@ importers:
 
 packages:
 
-  '@agent-base/api-client@0.28.0':
-    resolution: {integrity: sha512-PiYYpdPo0AKUgS8FOY3Np+kplbnXCDaXdQ+xNYSyFhZtqeRdQc3U16C5G9XAVbK08lLfP16WOxg69nQVKJDpXQ==}
+  '@agent-base/api-client@0.29.0':
+    resolution: {integrity: sha512-iN6UIXfl103Gmk6RsOIDmFdJZk1r1SHiQn6xIpKOgnYcAmbtPsaYgVM15kQONXS7BUiKiYwelXHiz8cgUstOwA==}
     peerDependencies:
-      '@agent-base/types': 0.27.0
+      '@agent-base/types': 0.32.0
 
-  '@agent-base/secret-client@0.6.0':
-    resolution: {integrity: sha512-UDt5lhx6GxWwbTt4xPz3WGjpCke2251yASTAm/sLRbq3F6vYi/ZCm4s0ayNWqz84ntfYWv4/+wp4w5m3jHFm7A==}
+  '@agent-base/secret-client@0.7.0':
+    resolution: {integrity: sha512-5tlVFjqe8nNGvd1Tt0TUfFd38LVBDW/ybCXHMAEiaxwfvf3Rl/Y/VCMsqIYUVnjaHpkTH62CplBY4oh9iowQLw==}
     engines: {node: '>=18.0.0'}
 
-  '@agent-base/types@0.32.0':
-    resolution: {integrity: sha512-EVXTML1DSK8g9gc9Xla2ONAt/rmVIqkKpRTzEcFab7T0RZITdeEvxtHEiUBhRAi07lq2VzdvP1P/fbMg4ZuMFw==}
+  '@agent-base/types@0.33.0':
+    resolution: {integrity: sha512-sHxQpGg6+M3hOZV0qTnLE36klbfaUuSvdUrgXIENCg5gUc0oLEUhBBCZ3MMlhRnoA7hSaGI4E5ZxJ0i5IivQsQ==}
 
   '@ai-sdk/provider-utils@2.2.8':
     resolution: {integrity: sha512-fqhG+4sCVv8x7nFzYnFo19ryhAa3w096Kmc3hWxMQfW/TubPOmt3A6tYZhl4mUfQWWQMsuSkLrtjlWuXBVSGQA==}
@@ -186,8 +186,8 @@ packages:
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
 
-  '@modelcontextprotocol/sdk@1.11.2':
-    resolution: {integrity: sha512-H9vwztj5OAqHg9GockCQC06k1natgcxWQSRpQcPJf6i5+MWBzfKkRtxGbjQf0X2ihii0ffLZCRGbYV2f2bjNCQ==}
+  '@modelcontextprotocol/sdk@1.11.3':
+    resolution: {integrity: sha512-rmOWVRUbUJD7iSvJugjUbFZshTAuJ48MXoZ80Osx1GM0K/H1w7rSEvmw8m6vdWxNASgtaHIhAgre4H/E9GJiYQ==}
     engines: {node: '>=18'}
 
   '@opentelemetry/api@1.9.0':
@@ -624,8 +624,8 @@ packages:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
 
-  eventsource-parser@3.0.1:
-    resolution: {integrity: sha512-VARTJ9CYeuQYb0pZEPbzi740OWFgpHe7AYJ2WFZVnUDUQp5Dk2yJUgF36YsZ81cOyxT0QxmXD2EQpapAouzWVA==}
+  eventsource-parser@3.0.2:
+    resolution: {integrity: sha512-6RxOBZ/cYgd8usLwsEl+EC09Au/9BcmCKYF2/xbml6DNczf7nv0MQb+7BA2F+li6//I+28VNlQR37XfQtcAJuA==}
     engines: {node: '>=18.0.0'}
 
   eventsource@3.0.7:
@@ -1352,9 +1352,9 @@ packages:
     resolution: {integrity: sha512-0pfFzegeDWJHJIAmTLRP2DwHjdF5s7jo9tuztdQxAhINCdvS+3nGINqPd00AphqJR/0LhANUS6/+7SCb98YOfA==}
     engines: {node: '>=10'}
 
-  yaml@2.7.1:
-    resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
-    engines: {node: '>= 14'}
+  yaml@2.8.0:
+    resolution: {integrity: sha512-4lLa/EcQCB0cJkyts+FpIRx5G/llPxfP6VQU5KByHEhLxY3IJCH0f0Hy1MHI8sClTvsIb8qwRJ6R/ZdlDJ/leQ==}
+    engines: {node: '>= 14.6'}
     hasBin: true
 
   yargs-parser@21.1.1:
@@ -1383,9 +1383,9 @@ packages:
 
 snapshots:
 
-  '@agent-base/api-client@0.28.0(@agent-base/types@0.32.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)':
+  '@agent-base/api-client@0.29.0(@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)':
     dependencies:
-      '@agent-base/types': 0.32.0(react@19.1.0)(zod@3.24.4)
+      '@agent-base/types': 0.33.0(react@19.1.0)(zod@3.24.4)
       ai: 4.3.15(react@19.1.0)(zod@3.24.4)
       axios: 1.9.0
     transitivePeerDependencies:
@@ -1393,13 +1393,17 @@ snapshots:
       - react
       - zod
 
-  '@agent-base/secret-client@0.6.0':
+  '@agent-base/secret-client@0.7.0(react@19.1.0)(zod@3.24.4)':
     dependencies:
+      '@agent-base/types': 0.33.0(react@19.1.0)(zod@3.24.4)
       '@google-cloud/secret-manager': 6.0.1
     transitivePeerDependencies:
+      - debug
+      - react
       - supports-color
+      - zod
 
-  '@agent-base/types@0.32.0(react@19.1.0)(zod@3.24.4)':
+  '@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4)':
     dependencies:
       '@types/json-schema': 7.0.15
       ai: 4.3.15(react@19.1.0)(zod@3.24.4)
@@ -1529,7 +1533,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@modelcontextprotocol/sdk@1.11.2':
+  '@modelcontextprotocol/sdk@1.11.3':
     dependencies:
       content-type: 1.0.5
       cors: 2.8.5
@@ -1934,7 +1938,7 @@ snapshots:
       '@humanfs/node': 0.16.6
       '@humanwhocodes/module-importer': 1.0.1
       '@humanwhocodes/retry': 0.4.3
-      '@modelcontextprotocol/sdk': 1.11.2
+      '@modelcontextprotocol/sdk': 1.11.3
       '@types/estree': 1.0.7
       '@types/json-schema': 7.0.15
       ajv: 6.12.6
@@ -1985,11 +1989,11 @@ snapshots:
 
   event-target-shim@5.0.1: {}
 
-  eventsource-parser@3.0.1: {}
+  eventsource-parser@3.0.2: {}
 
   eventsource@3.0.7:
     dependencies:
-      eventsource-parser: 3.0.1
+      eventsource-parser: 3.0.2
 
   express-rate-limit@7.5.0(express@5.1.0):
     dependencies:
@@ -2402,7 +2406,7 @@ snapshots:
 
   openapi3-ts@4.4.0:
     dependencies:
-      yaml: 2.7.1
+      yaml: 2.8.0
 
   optionator@0.9.4:
     dependencies:
@@ -2758,7 +2762,7 @@ snapshots:
 
   y18n@5.0.8: {}
 
-  yaml@2.7.1: {}
+  yaml@2.8.0: {}
 
   yargs-parser@21.1.1: {}
 

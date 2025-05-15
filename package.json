@@ -15,7 +15,6 @@
     "clean": "rm -rf dist node_modules"
   },
   "dependencies": {
-    "@agent-base/secret-client": "^0.6.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "axios": "^1.9.0",
@@ -24,8 +23,9 @@
     "json-schema": "^0.4.0"
   },
   "devDependencies": {
-    "@agent-base/api-client": "^0.28.0",
-    "@agent-base/types": "^0.32.0",
+    "@agent-base/api-client": "^0.29.0",
+    "@agent-base/secret-client": "^0.7.0",
+    "@agent-base/types": "^0.33.0",
     "@types/express": "^5.0.1",
     "@types/json-schema": "^7.0.15",
     "@types/node": "^22.15.17",

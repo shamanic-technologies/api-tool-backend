@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@agent-base/api-client": "^0.29.0",
-    "@agent-base/secret-client": "^0.7.0",
+    "@agent-base/secret-client": "^0.10.0",
     "@agent-base/types": "^0.33.0",
     "@types/express": "^5.0.1",
     "@types/json-schema": "^7.0.15",

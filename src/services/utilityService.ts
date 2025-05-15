@@ -219,11 +219,10 @@ export const runToolExecution = async (
                         // The 'type' (e.g., 'api_key_google', 'stripe_test_key') is what we registered in securitySecrets.
                         // This 'type' should be used for GSM ID generation.
                         const gsmSecretId = generateSecretManagerId( // Use the imported shared utility
-                            UserType.Client,
-                            clientUserId,
-                            apiTool.utilityProvider.toString(), // contextProvider (ensure string)
-                            apiTool.id,                         // contextIdentifier (toolId)
-                            type                                // secretNameOrType (UtilitySecretType, which is string)
+                            UserType.Client,                    // userType
+                            clientUserId,                       // userId
+                            apiTool.utilityProvider.toString(), // utilityProvider
+                            type,                               // secretType
                         );
                         console.log(`${logPrefix} Attempting to fetch secret with GSM ID: ${gsmSecretId} for tool key ${specKey} (type: ${type})`);
                         try {

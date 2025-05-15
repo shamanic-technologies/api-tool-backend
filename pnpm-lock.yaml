@@ -31,8 +31,8 @@ importers:
         specifier: ^0.29.0
         version: 0.29.0(@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)
       '@agent-base/secret-client':
-        specifier: ^0.7.0
-        version: 0.7.0(react@19.1.0)(zod@3.24.4)
+        specifier: ^0.10.0
+        version: 0.10.0(react@19.1.0)(zod@3.24.4)
       '@agent-base/types':
         specifier: ^0.33.0
         version: 0.33.0(react@19.1.0)(zod@3.24.4)
@@ -65,8 +65,8 @@ packages:
     peerDependencies:
       '@agent-base/types': 0.32.0
 
-  '@agent-base/secret-client@0.7.0':
-    resolution: {integrity: sha512-5tlVFjqe8nNGvd1Tt0TUfFd38LVBDW/ybCXHMAEiaxwfvf3Rl/Y/VCMsqIYUVnjaHpkTH62CplBY4oh9iowQLw==}
+  '@agent-base/secret-client@0.10.0':
+    resolution: {integrity: sha512-cI9ySiHEM7qCx7oNpD0YcssbL2boUib9oEM2XMy2YWrp45gq4dWsdxcFFeFF9VGCPfRd1+9C3r5IuKCNsCdu8w==}
     engines: {node: '>=18.0.0'}
 
   '@agent-base/types@0.33.0':
@@ -1393,7 +1393,7 @@ snapshots:
       - react
       - zod
 
-  '@agent-base/secret-client@0.7.0(react@19.1.0)(zod@3.24.4)':
+  '@agent-base/secret-client@0.10.0(react@19.1.0)(zod@3.24.4)':
     dependencies:
       '@agent-base/types': 0.33.0(react@19.1.0)(zod@3.24.4)
       '@google-cloud/secret-manager': 6.0.1

@@ -309,5 +309,119 @@
       "x-secret-username": "crisp_identifier",
       "x-secret-password": "crisp_api_key"
     }
+  },
+  {
+    "id": "crisp_simple_reply",
+    "utilityProvider": "custom_api",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Crisp Simple Reply",
+        "version": "1.0.0",
+        "description": "Simple API to reply to Crisp messages"
+      },
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "operationId": "sendMessage",
+            "summary": "Send a message to a Crisp conversation",
+            "parameters": [
+              {
+                "name": "website_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp website ID"
+              },
+              {
+                "name": "session_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp session ID"
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "text"
+                        ],
+                        "default": "text"
+                      },
+                      "from": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ],
+                        "default": "operator"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "chat"
+                        ],
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ]
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Message sent successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            },
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ]
+          }
+        }
+      },
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic authentication with Crisp API key"
+          }
+        }
+      }
+    },
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "crisp_api_identifier",
+      "x-secret-password": "crisp_api_key"
+    }
   }
 ]

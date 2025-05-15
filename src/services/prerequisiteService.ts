@@ -127,12 +127,12 @@ export const checkPrerequisites = async (
                         fetchedCredentials[chosenSchemeName] = secretResponse.data.value;
                     } else {
                         allPrerequisitesMet = false;
-                        requiredSecretsForSetup.push(apiKeySecretEnum);
+                        requiredSecretsForSetup.push(apiKeySecretEnum as UtilityInputSecret);
                     }
                 } catch (err) {
                     console.error(`${logPrefix} Error fetching secret ${apiKeySecretEnum} for scheme '${chosenSchemeName}':`, err);
                     allPrerequisitesMet = false;
-                    requiredSecretsForSetup.push(apiKeySecretEnum);
+                    requiredSecretsForSetup.push(apiKeySecretEnum as UtilityInputSecret);
                 } 
             }
             break;
@@ -153,12 +153,12 @@ export const checkPrerequisites = async (
                             fetchedCredentials[chosenSchemeName] = secretResponse.data.value;
                         } else {
                             allPrerequisitesMet = false;
-                            requiredSecretsForSetup.push(bearerSecretEnum);
+                            requiredSecretsForSetup.push(bearerSecretEnum as UtilityInputSecret);
             }
         } catch (err) {
                         console.error(`${logPrefix} Error fetching secret ${bearerSecretEnum} for scheme '${chosenSchemeName}':`, err);
                         allPrerequisitesMet = false;
-                        requiredSecretsForSetup.push(bearerSecretEnum);
+                        requiredSecretsForSetup.push(bearerSecretEnum as UtilityInputSecret);
                     }
                 }
             } else if (resolvedSecurityScheme.scheme === 'basic') {
@@ -178,12 +178,12 @@ export const checkPrerequisites = async (
                             fetchedCredentials[chosenSchemeName + '_username'] = userRes.data.value;
                         } else {
                             allPrerequisitesMet = false;
-                            requiredSecretsForSetup.push(userSecretEnum);
+                            requiredSecretsForSetup.push(userSecretEnum as UtilityInputSecret);
                         }
                     } catch (err) {
                         console.error(`${logPrefix} Error fetching username secret ${userSecretEnum} for scheme '${chosenSchemeName}':`, err);
                         allPrerequisitesMet = false;
-                        requiredSecretsForSetup.push(userSecretEnum);
+                        requiredSecretsForSetup.push(userSecretEnum as UtilityInputSecret);
                 }
                 }
                 if (passSecretEnum) { // Only try to fetch password if it's specified in securitySecrets
@@ -197,12 +197,12 @@ export const checkPrerequisites = async (
                         } else {
                             // If password secret is configured but not found, it implies it's required by the user
                             allPrerequisitesMet = false;
-                            requiredSecretsForSetup.push(passSecretEnum);
+                            requiredSecretsForSetup.push(passSecretEnum as UtilityInputSecret);
                         }
                     } catch (err) {
                         console.error(`${logPrefix} Error fetching password secret ${passSecretEnum} for scheme '${chosenSchemeName}':`, err);
                         allPrerequisitesMet = false;
-                        requiredSecretsForSetup.push(passSecretEnum);
+                        requiredSecretsForSetup.push(passSecretEnum as UtilityInputSecret);
             }
                 } else if (resolvedSecurityScheme.scheme === 'basic' && !passSecretEnum) {
                     // If basic auth and no password secret mapping provided, assume empty password for this scheme.

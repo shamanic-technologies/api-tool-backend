@@ -29,13 +29,13 @@ importers:
     devDependencies:
       '@agent-base/api-client':
         specifier: ^0.29.0
-        version: 0.29.0(@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)
+        version: 0.29.0(@agent-base/types@0.34.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)
       '@agent-base/secret-client':
         specifier: ^0.10.0
         version: 0.10.0(react@19.1.0)(zod@3.24.4)
       '@agent-base/types':
-        specifier: ^0.33.0
-        version: 0.33.0(react@19.1.0)(zod@3.24.4)
+        specifier: ^0.34.0
+        version: 0.34.0(react@19.1.0)(zod@3.24.4)
       '@types/express':
         specifier: ^5.0.1
         version: 5.0.1
@@ -71,6 +71,9 @@ packages:
 
   '@agent-base/types@0.33.0':
     resolution: {integrity: sha512-sHxQpGg6+M3hOZV0qTnLE36klbfaUuSvdUrgXIENCg5gUc0oLEUhBBCZ3MMlhRnoA7hSaGI4E5ZxJ0i5IivQsQ==}
+
+  '@agent-base/types@0.34.0':
+    resolution: {integrity: sha512-XGNKCfoQHc0dliHCm9m+HnZBNsdyNaN6JCQb17F0Dp3vS4aPh8pB/5FT47It5QdVxV6E7LN2BdEtPfnN8xxszA==}
 
   '@ai-sdk/provider-utils@2.2.8':
     resolution: {integrity: sha512-fqhG+4sCVv8x7nFzYnFo19ryhAa3w096Kmc3hWxMQfW/TubPOmt3A6tYZhl4mUfQWWQMsuSkLrtjlWuXBVSGQA==}
@@ -1383,9 +1386,9 @@ packages:
 
 snapshots:
 
-  '@agent-base/api-client@0.29.0(@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)':
+  '@agent-base/api-client@0.29.0(@agent-base/types@0.34.0(react@19.1.0)(zod@3.24.4))(react@19.1.0)(zod@3.24.4)':
     dependencies:
-      '@agent-base/types': 0.33.0(react@19.1.0)(zod@3.24.4)
+      '@agent-base/types': 0.34.0(react@19.1.0)(zod@3.24.4)
       ai: 4.3.15(react@19.1.0)(zod@3.24.4)
       axios: 1.9.0
     transitivePeerDependencies:
@@ -1404,6 +1407,18 @@ snapshots:
       - zod
 
   '@agent-base/types@0.33.0(react@19.1.0)(zod@3.24.4)':
+    dependencies:
+      '@types/json-schema': 7.0.15
+      ai: 4.3.15(react@19.1.0)(zod@3.24.4)
+      axios: 1.9.0
+      json-schema: 0.4.0
+      openapi3-ts: 4.4.0
+    transitivePeerDependencies:
+      - debug
+      - react
+      - zod
+
+  '@agent-base/types@0.34.0(react@19.1.0)(zod@3.24.4)':
     dependencies:
       '@types/json-schema': 7.0.15
       ai: 4.3.15(react@19.1.0)(zod@3.24.4)

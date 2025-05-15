@@ -200,5 +200,114 @@
         }
       ]
     }
+  },
+  {
+    "id": "crisp_send_message",
+    "utilityProvider": "custom_api",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Crisp Send Message",
+        "description": "Sends a text message to an existing Crisp conversation",
+        "version": "v1"
+      },
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "operationId": "crispSendMessage",
+            "summary": "Send a message to a Crisp conversation",
+            "parameters": [
+              {
+                "name": "website_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp website ID"
+              },
+              {
+                "name": "session_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp session ID"
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "text"
+                        ],
+                        "default": "text"
+                      },
+                      "from": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ],
+                        "default": "operator"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "chat"
+                        ],
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message text content"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ]
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Message sent successfully",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "components": {
+        "securitySchemes": {
+          "crispBasicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic authentication with Crisp API identifier as username and API key as password"
+          }
+        }
+      }
+    },
+    "securityOption": "crispBasicAuth",
+    "securitySecrets": {
+      "x-secret-username": "crisp_identifier",
+      "x-secret-password": "crisp_api_key"
+    }
   }
 ]

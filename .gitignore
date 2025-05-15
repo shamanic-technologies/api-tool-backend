@@ -129,4 +129,7 @@ public/build/
 
 # Compiled output
 dist
-.turbo 
+.turbo
+
+# Service account key
+service-account-key.json

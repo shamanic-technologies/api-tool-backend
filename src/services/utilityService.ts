@@ -9,6 +9,8 @@ import {
     SetupNeeded,
     UtilityInputSecret,
     UtilityProvider, // Ensure this is imported if used directly
+    ApiToolStatus,
+    SuccessResponse // Added SuccessResponse import
 } from '@agent-base/types';
 import { JSONSchema7 } from 'json-schema';
 // Import updated database service functions and types
@@ -18,10 +20,11 @@ import {
     getAllApiTools,
     // updateApiTool, // Add if/when an update utility function is needed
     // deleteApiTool, // Add if/when a delete utility function is needed
+    recordApiToolExecution,
+    getOrCreateUserApiTool,
+    updateUserApiToolStatus,
 } from './databaseService';
 import { ApiToolRecord, ApiToolExecutionRecord } from '../types/db.types';
-import { recordApiToolExecution } from './databaseService'; // Added import
-
 import { handleExecution } from './executionService';
 import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils';
 import { gsmClient } from '..';
@@ -188,7 +191,17 @@ export const runToolExecution = async (
     console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
 
     try {
-        const apiToolRecord = await getApiToolById(toolId); // Fetches ApiToolRecord | null
+        // Ensure user-tool record exists, creating it with UNSET status if it's the first call.
+        try {
+            await getOrCreateUserApiTool(clientUserId, toolId);
+            console.log(`${logPrefix} Ensured UserApiTool record exists for user ${clientUserId}, tool ${toolId}.`);
+        } catch (dbError) {
+            // Log the error but don't let it block the main execution flow.
+            // The primary function is to execute the tool. Status tracking is secondary.
+            console.error(`${logPrefix} Failed to get or create UserApiTool record, continuing execution:`, dbError);
+        }
+
+        const apiToolRecord = await getApiToolById(toolId); 
 
         if (!apiToolRecord) {
             return { success: false, error: `Tool config not found for ID '${toolId}'.` };
@@ -348,15 +361,29 @@ export const runToolExecution = async (
         }
 
         console.log(`${logPrefix} All required secrets found for ${apiToolRecord.id}. Delegating to handleExecution...`);
-        // Pass apiToolRecord (which is ApiToolRecord) to handleExecution.
-        // handleExecution might need to be updated if it strictly expects ApiTool type and relies on fields not in ApiToolRecord
-        // or if it modifies the object and expects ApiTool specific fields.
-        // For now, assume structural compatibility is sufficient or handleExecution is flexible.
         const result = await handleExecution(agentServiceCredentials, apiToolRecord as unknown as ApiTool, conversationId, params, resolvedSecrets);
+
+        // After successful execution (not an error, not a setup needed response)
+        if (result.success === true) {
+            // Check if result.data is not SetupNeeded
+            const successData = (result as SuccessResponse<any>).data;
+            if (!(typeof successData === 'object' && successData !== null && 'needsSetup' in successData && successData.needsSetup === true)) {
+                try {
+                    await updateUserApiToolStatus(clientUserId, toolId, ApiToolStatus.ACTIVE);
+                    console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
+                } catch (dbUpdateError) {
+                    // Log error but don't let it fail the overall successful execution response.
+                    console.error(`${logPrefix} Failed to update UserApiTool status to ACTIVE, but tool execution was successful:`, dbUpdateError);
+                }
+            }
+        }
+        
         return result;
 
     } catch (error) {
         console.error(`${logPrefix} Error in runToolExecution for ${toolId}:`, error);
+        // Record an execution attempt with an error if appropriate, or handle as needed.
+        // This part might need more nuanced error handling for UserApiTool status if specific errors should prevent ACTIVE status.
         return { success: false, error: 'Tool execution orchestration failed.', details: error instanceof Error ? error.message : String(error) };
     }
 };

@@ -1,5 +1,6 @@
 import { query } from '../lib/db'; // Removed .js extension
-import { ApiToolRecord, ApiToolExecutionRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution
+import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution and UserApiTool
+import { ApiToolStatus } from '@agent-base/types'; // Import ApiToolStatus directly
 
 /**
  * @file Database Service
@@ -60,6 +61,17 @@ const mapRowToApiToolExecution = (row: any): ApiToolExecutionRecord => {
         error: row.error,
         error_details: row.error_details,
         hint: row.hint,
+        created_at: new Date(row.created_at),
+        updated_at: new Date(row.updated_at),
+    };
+};
+
+// Corrected helper function to map database row to UserApiToolRecord
+const mapRowToUserApiToolRecord = (row: any): UserApiToolRecord => {
+    return {
+        user_id: row.user_id,
+        api_tool_id: row.api_tool_id,
+        status: row.status as ApiToolStatus, // Ensure this matches the enum values, e.g., 'unset', 'active'
         created_at: new Date(row.created_at),
         updated_at: new Date(row.updated_at),
     };
@@ -321,5 +333,71 @@ export const getApiToolExecutions = async (apiToolId: string, userId?: string): 
     } catch (error) {
         console.error(`Error fetching executions for API tool ${apiToolId}:`, error);
         throw new Error('Could not retrieve API tool executions.');
+    }
+};
+
+// --- User API Tool ---
+
+/**
+ * Finds an existing UserApiToolRecord by user ID and API tool ID, or creates a new one if not found.
+ * If created, the status will be ApiToolStatus.UNSET.
+ * @param {string} userId The ID of the user.
+ * @param {string} apiToolId The ID of the API tool.
+ * @returns {Promise<UserApiToolRecord>} The found or created UserApiToolRecord.
+ * @throws {Error} If the database operation fails.
+ */
+export const getOrCreateUserApiTool = async (userId: string, apiToolId: string): Promise<UserApiToolRecord> => {
+    const findSql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND api_tool_id = $2;';
+    try {
+        const findResult = await query(findSql, [userId, apiToolId]);
+        if (findResult.rows.length > 0) {
+            return mapRowToUserApiToolRecord(findResult.rows[0]);
+        } else {
+            // Not found, create a new one. 'created_at' and 'updated_at' will use DB defaults.
+            const insertSql = `
+                INSERT INTO user_api_tools (user_id, api_tool_id, status)
+                VALUES ($1, $2, $3)
+                RETURNING *;
+            `;
+            // Use ApiToolStatus.UNSET which is 'unset'
+            const insertResult = await query(insertSql, [userId, apiToolId, ApiToolStatus.UNSET]);
+            if (insertResult.rows.length === 0) {
+                throw new Error('Failed to create UserApiToolRecord, no record returned.');
+            }
+            return mapRowToUserApiToolRecord(insertResult.rows[0]);
+        }
+    } catch (error) {
+        console.error(`Error in getOrCreateUserApiTool for user ${userId}, tool ${apiToolId}:`, error);
+        throw new Error('Could not get or create UserApiToolRecord.');
+    }
+};
+
+/**
+ * Updates the status and updated_at timestamp of a UserApiToolRecord.
+ * @param {string} userId The ID of the user.
+ *   @param {string} apiToolId The ID of the API tool.
+ * @param {ApiToolStatus} status The new status.
+ * @returns {Promise<UserApiToolRecord | null>} The updated UserApiToolRecord, or null if not found.
+ * @throws {Error} If the database operation fails.
+ */
+export const updateUserApiToolStatus = async (userId: string, apiToolId: string, status: ApiToolStatus): Promise<UserApiToolRecord | null> => {
+    const sql = `
+        UPDATE user_api_tools
+        SET status = $1, updated_at = current_timestamp
+        WHERE user_id = $2 AND api_tool_id = $3
+        RETURNING *;
+    `;
+    try {
+        const result = await query(sql, [status, userId, apiToolId]);
+        if (result.rows.length === 0) {
+            // It's possible the record doesn't exist, which might not be an error in all cases.
+            // Depending on requirements, you might want to throw or log here.
+            console.warn(`No UserApiToolRecord found for user ${userId} and tool ${apiToolId} to update status.`);
+            return null;
+        }
+        return mapRowToUserApiToolRecord(result.rows[0]);
+    } catch (error) {
+        console.error(`Error updating UserApiToolRecord status for user ${userId}, tool ${apiToolId}:`, error);
+        throw new Error('Could not update UserApiToolRecord status.');
     }
 }; 

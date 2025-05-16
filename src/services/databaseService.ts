@@ -400,4 +400,21 @@ export const updateUserApiToolStatus = async (userId: string, apiToolId: string,
         console.error(`Error updating UserApiToolRecord status for user ${userId}, tool ${apiToolId}:`, error);
         throw new Error('Could not update UserApiToolRecord status.');
     }
+};
+
+/**
+ * Retrieves all UserApiToolRecord for a given user ID, excluding those with DELETED status.
+ * @param {string} userId The ID of the user.
+ * @returns {Promise<UserApiToolRecord[]>} An array of UserApiToolRecord.
+ * @throws {Error} If the database operation fails.
+ */
+export const getUserApiToolsByUserId = async (userId: string): Promise<UserApiToolRecord[]> => {
+    const sql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND status != $2 ORDER BY created_at DESC;';
+    try {
+        const result = await query(sql, [userId, ApiToolStatus.DELETED]);
+        return result.rows.map(mapRowToUserApiToolRecord);
+    } catch (error) {
+        console.error(`Error fetching user API tools for user ID ${userId}:`, error);
+        throw new Error('Could not retrieve user API tools.');
+    }
 }; 

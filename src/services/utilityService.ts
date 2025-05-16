@@ -23,8 +23,9 @@ import {
     recordApiToolExecution,
     getOrCreateUserApiTool,
     updateUserApiToolStatus,
+    getUserApiToolsByUserId, // Added import
 } from './databaseService';
-import { ApiToolRecord, ApiToolExecutionRecord } from '../types/db.types';
+import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types'; // Added UserApiToolRecord import
 import { handleExecution } from './executionService';
 import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils';
 import { gsmClient } from '..';
@@ -385,5 +386,26 @@ export const runToolExecution = async (
         // Record an execution attempt with an error if appropriate, or handle as needed.
         // This part might need more nuanced error handling for UserApiTool status if specific errors should prevent ACTIVE status.
         return { success: false, error: 'Tool execution orchestration failed.', details: error instanceof Error ? error.message : String(error) };
+    }
+};
+
+/**
+ * Service function to retrieve all API tools for a specific user, excluding deleted ones.
+ * @param {string} userId The ID of the user.
+ * @returns {Promise<UserApiToolRecord[]>} A list of user API tool records.
+ * @throws {Error} If retrieval fails.
+ */
+export const getUserApiTools = async (userId: string): Promise<UserApiToolRecord[]> => {
+    const logPrefix = `[UtilityService GetUserApiTools User: ${userId}]`;
+    console.log(`${logPrefix} Retrieving tools for user.`);
+    try {
+        const userToolRecords = await getUserApiToolsByUserId(userId);
+        return userToolRecords;
+    } catch (error) {
+        console.error(`${logPrefix} Error retrieving user API tools:`, error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to retrieve API tools for user ${userId}: ${error.message}`);
+        }
+        throw new Error(`Failed to retrieve API tools for user ${userId} due to an unknown error.`);
     }
 };

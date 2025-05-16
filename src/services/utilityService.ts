@@ -19,7 +19,9 @@ import {
     UtilityProvider,    
     InternalUtilityInfo,
     UserType, // Added: For secret ID generation
-    UtilitySecretType // Added: For secret ID generation and typing
+    UtilitySecretType, // Added: For secret ID generation and typing
+    SetupNeeded,        // Added: For constructing compliant response
+    UtilityInputSecret  // Added: For mapping and typing
 } from '@agent-base/types';
 import { JSONSchema7 } from 'json-schema'; // For ApiToolInfo schema
 // Import database service functions
@@ -261,16 +263,46 @@ export const runToolExecution = async (
 
         if (missingSecretsDetails.length > 0) {
             console.log(`${logPrefix} Tool requires setup due to missing secrets:`, missingSecretsDetails.map(s => s.secretType));
+
+            // 1. Map custom secret types to standard UtilityInputSecret enum values
+            const requiredStandardSecrets: UtilityInputSecret[] = missingSecretsDetails.map(detail => {
+                // Attempt to directly use 'detail.secretType' if it's already a valid UtilityInputSecret value.
+                // This assumes 'detail.secretType' (derived from apiTool.securitySecrets) 
+                // might already be one of the standard enum string values.
+                if (Object.values(UtilityInputSecret).includes(detail.secretType as UtilityInputSecret)) {
+                    return detail.secretType as UtilityInputSecret;
+                }
+                
+                // ***** CRUCIAL MAPPING LOGIC REQUIRED HERE IF detail.secretType IS NOT A STANDARD UtilityInputSecret VALUE *****
+                // Example:
+                // if (detail.secretType === 'custom_username_type_for_crisp') return UtilityInputSecret.USERNAME;
+                // if (detail.secretType === 'custom_api_key_for_crisp') return UtilityInputSecret.API_SECRET_KEY;
+
+                console.warn(`${logPrefix} No direct mapping or specific rule found for secretType: "${detail.secretType}". This secret might not appear correctly in the setup form or might be skipped if not a valid UtilityInputSecret.`);
+                // Depending on strictness, you might return null and filter, or attempt a generic mapping if possible.
+                // For now, we pass it through, relying on the frontend to handle unrecognized types gracefully or for 'detail.secretType' to be valid.
+                // A more robust solution would ensure 'detail.secretType' from 'apiTool.securitySecrets' IS ALWAYS a UtilityInputSecret string.
+                return detail.secretType as UtilityInputSecret; // Cast, hoping it's a valid value or will be handled
+            }).filter(s => s !== null && s !== undefined); // Filter out any nulls if mapping logic could produce them
+
+
+            // 2. Construct the compliant SetupNeeded object
+            const setupNeededData: SetupNeeded = {
+                needsSetup: true,
+                utilityProvider: apiTool.utilityProvider,
+                // 3. Add title, description, message
+                title: `Configuration Required: ${apiTool.openapiSpecification.info.title}`,
+                description: `To use '${apiTool.openapiSpecification.info.title}', please provide the following information. Your data will be stored securely.`,
+                message: `Additional setup is needed for the tool: ${apiTool.openapiSpecification.info.title}.`,
+                requiredSecretInputs: requiredStandardSecrets,
+                // Ensure other optional fields from SetupNeeded are present if applicable
+                requiredActionConfirmations: [], // Initialize as empty; add logic if actions are needed
+                // oauthUrl: undefined, // Initialize if not applicable here; add logic if OAuth is part of this flow
+            };
+
             return {
                 success: true, // The operation to check was successful, but setup is needed
-                data: {
-                    needsSetup: true,
-                    missingSecrets: missingSecretsDetails.map(s => s.secretType), // List of types that are missing
-                    toolId: apiTool.id,
-                    utilityProvider: apiTool.utilityProvider,
-                    requiredSecretsDetails: missingSecretsDetails, // Detailed info for the form
-                    hint: `The tool '${apiTool.openapiSpecification.info.title}' requires some secrets to be configured before it can be used. Please provide the following information.`
-                }
+                data: setupNeededData // Send the compliant object
             };
         }
 

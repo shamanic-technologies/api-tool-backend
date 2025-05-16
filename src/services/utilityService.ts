@@ -220,21 +220,23 @@ export const runToolExecution = async (
                     for (const { specKey, type, prompt, openApiName } of requiredSecretKeysInSpec) {
                         // The 'type' (e.g., 'api_key_google', 'stripe_test_key') is what we registered in securitySecrets.
                         // This 'type' should be used for GSM ID generation.
+                        console.log(`${logPrefix} Preparing to fetch secret. UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider.toString()}', SecretType: '${type}'`);
                         const gsmSecretId = generateSecretManagerId( // Use the imported shared utility
                             UserType.Client,                    // userType
                             clientUserId,                       // userId
                             apiTool.utilityProvider.toString(), // utilityProvider
                             type,                               // secretType
                         );
-                        console.log(`${logPrefix} Attempting to fetch secret with GSM ID: ${gsmSecretId} for tool key ${specKey} (type: ${type})`);
+                        console.log(`${logPrefix} Generated GSM Secret ID: '${gsmSecretId}'`);
                         try {
                             const secretValue = await gsmClient.getSecret(gsmSecretId);
+                            console.log(`${logPrefix} Value from GSM for ID '${gsmSecretId}': ${secretValue ? `'${typeof secretValue === 'string' ? secretValue.substring(0,15) : JSON.stringify(secretValue)}...' (type: ${typeof secretValue})` : String(secretValue)}`);
                             if (secretValue) {
                                 console.log(`${logPrefix} Successfully fetched secret for GSM ID: ${gsmSecretId}`);
                                 // Store the secret by its role or openApiName so handleExecution knows what it is
                                 resolvedSecrets[openApiName || specKey] = secretValue; 
                             } else {
-                                console.warn(`${logPrefix} Secret not found in GSM for ID: ${gsmSecretId} (type: ${type})`);
+                                console.warn(`${logPrefix} Secret not found in GSM for ID: ${gsmSecretId} (type: ${type}) (gsmClient.getSecret returned falsy)`);
                                 missingSecretsDetails.push({
                                     secretKeyInSpec: specKey,
                                     secretType: type, // The specific type from securitySecrets
@@ -243,7 +245,7 @@ export const runToolExecution = async (
                                 });
                             }
                         } catch (error) {
-                            console.error(`${logPrefix} Error fetching secret from GSM (ID: ${gsmSecretId}):`, error);
+                            console.error(`${logPrefix} Explicit error caught from gsmClient.getSecret for ID '${gsmSecretId}' (type: ${type}):`, error);
                             // Treat GSM error as secret not found for setup purposes
                              missingSecretsDetails.push({
                                 secretKeyInSpec: specKey,
@@ -307,10 +309,8 @@ export const runToolExecution = async (
         }
 
         console.log(`${logPrefix} All required secrets found. Delegating to handleExecution...`);
-        // Pass resolvedSecrets to handleExecution. handleExecution will need to be updated to accept the 5th argument.
-        // For now, to avoid breaking the build, we won't pass it until executionService is updated.
-        // const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
-        const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params);
+        // Pass resolvedSecrets to handleExecution.
+        const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
         
         console.log(`${logPrefix} Execution handled. Returning result.`);
         return result;

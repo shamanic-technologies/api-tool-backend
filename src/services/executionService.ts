@@ -19,6 +19,7 @@ import { makeApiCall } from './apiCallService';
  * @param {ApiTool} apiTool - The API tool configuration.
  * @param {string} conversationId - The ID of the current conversation.
  * @param {Record<string, any>} params - The raw input parameters for the tool.
+ * @param {Record<string, string>} resolvedSecrets - The resolved secrets for the tool.
  * @returns {Promise<ApiToolExecutionResponse>} The result of the execution (Success, Error, or SetupNeeded).
  */
 export const handleExecution = async (
@@ -26,6 +27,7 @@ export const handleExecution = async (
     apiTool: ApiTool,
     conversationId: string,
     params: Record<string, any>,
+    resolvedSecrets: Record<string, string>
 ): Promise<ApiToolExecutionResponse> => {
     const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentServiceCredentials.clientUserId}`;
     try {
@@ -39,7 +41,7 @@ export const handleExecution = async (
         const validatedParams = (validationResult as { validatedParams: Record<string, any> }).validatedParams;
 
         // 2. Check Prerequisites (using prerequisiteService)
-        const prereqResult = await checkPrerequisites(apiTool, agentServiceCredentials);
+        const prereqResult = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
         if (!prereqResult.prerequisitesMet) {
             // Non-null assertion is safe here due to prerequisitesMet check
             // Ensure setupNeededResponse is part of ApiToolExecutionResponse union

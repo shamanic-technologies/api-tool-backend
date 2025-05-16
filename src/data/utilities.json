@@ -1,1 +1,204 @@
-[]
+[
+  {
+    "id": "chargebee_list_refunds",
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Chargebee List Refunds",
+        "description": "Lists refund transactions from Chargebee",
+        "version": "v2"
+      },
+      "paths": {
+        "/v2/transactions": {
+          "get": {
+            "operationId": "listRefunds",
+            "summary": "List Refund Transactions",
+            "description": "Retrieves a list of refund transactions from Chargebee",
+            "parameters": [
+              {
+                "name": "limit",
+                "in": "query",
+                "description": "Number of transactions to be fetched (1-100)",
+                "required": false,
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              {
+                "name": "type[is]",
+                "in": "query",
+                "description": "Filter transactions by type",
+                "required": true,
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "refund"
+                  ],
+                  "default": "refund"
+                }
+              }
+            ],
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "List of refund transactions",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "transaction": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic Authentication with Chargebee API key as username and empty password"
+          }
+        }
+      }
+    },
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    }
+  },
+  {
+    "id": "chargebee_get_refunds",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    },
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "info": {
+        "title": "Chargebee Get Refunds",
+        "version": "v2",
+        "description": "Gets refund transactions from Chargebee"
+      },
+      "paths": {
+        "/{site_name}/transactions": {
+          "get": {
+            "summary": "List Refund Transactions",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "transaction": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "List of refund transactions"
+              }
+            },
+            "parameters": [
+              {
+                "in": "path",
+                "name": "site_name",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "Your Chargebee site name"
+              },
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                "required": false,
+                "description": "Number of transactions to be fetched (1-100)"
+              },
+              {
+                "in": "query",
+                "name": "type[is]",
+                "schema": {
+                  "enum": [
+                    "refund"
+                  ],
+                  "type": "string",
+                  "default": "refund"
+                },
+                "required": true,
+                "description": "Filter transactions by type"
+              }
+            ],
+            "description": "Retrieves a list of refund transactions from Chargebee",
+            "operationId": "listRefunds"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://{site_name}.chargebee.com/api/v2",
+          "variables": {
+            "site_name": {
+              "default": "your-site",
+              "description": "Your Chargebee site name"
+            }
+          }
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic Authentication with Chargebee API key as username and empty password"
+          }
+        }
+      }
+    }
+  }
+]

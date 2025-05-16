@@ -1,610 +1,72 @@
 [
   {
-    "id": "stripe_list_refunds",
-    "securityOption": "stripeBasicAuth",
-    "securitySecrets": {
-      "x-secret-username": "api_secret_key"
-    },
-    "utilityProvider": "stripe",
-    "openapiSpecification": {
-      "servers": [
-        {
-          "url": "https://api.stripe.com"
-        }
-      ],
-      "info": {
-        "title": "Stripe List Refunds",
-        "version": "v1",
-        "description": "Lists all refunds in your Stripe account"
-      },
-      "paths": {
-        "/v1/refunds": {
-          "get": {
-            "summary": "List all refunds",
-            "security": [
-              {
-                "stripeBasicAuth": []
-              }
-            ],
-            "responses": {
-              "200": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "url": {
-                          "type": "string"
-                        },
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "integer"
-                              },
-                              "charge": {
-                                "type": "string"
-                              },
-                              "object": {
-                                "enum": [
-                                  "refund"
-                                ],
-                                "type": "string"
-                              },
-                              "reason": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              },
-                              "created": {
-                                "type": "integer"
-                              },
-                              "currency": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        },
-                        "object": {
-                          "enum": [
-                            "list"
-                          ],
-                          "type": "string"
-                        },
-                        "has_more": {
-                          "type": "boolean"
-                        }
-                      }
-                    }
-                  }
-                },
-                "description": "A list of refunds"
-              }
-            },
-            "parameters": [
-              {
-                "in": "query",
-                "name": "limit",
-                "schema": {
-                  "type": "integer",
-                  "default": 10,
-                  "maximum": 100,
-                  "minimum": 1
-                },
-                "required": false,
-                "description": "A limit on the number of objects to be returned, between 1 and 100."
-              },
-              {
-                "in": "query",
-                "name": "starting_after",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
-              },
-              {
-                "in": "query",
-                "name": "ending_before",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
-              }
-            ],
-            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
-            "operationId": "stripeListRefunds"
-          }
-        }
-      },
-      "openapi": "3.0.0",
-      "components": {
-        "securitySchemes": {
-          "stripeBasicAuth": {
-            "type": "http",
-            "scheme": "basic",
-            "description": "HTTP Basic Authentication with Stripe API key as username and empty password."
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "stripe_list_refunds_bearer",
-    "securityOption": "stripeBearerAuth",
-    "securitySecrets": {
-      "x-secret-name": "api_secret_key"
-    },
-    "utilityProvider": "stripe",
-    "openapiSpecification": {
-      "info": {
-        "title": "Stripe List Refunds",
-        "version": "v1",
-        "description": "Lists all refunds in your Stripe account"
-      },
-      "paths": {
-        "/v1/refunds": {
-          "get": {
-            "summary": "List all refunds",
-            "security": [
-              {
-                "stripeBearerAuth": []
-              }
-            ],
-            "responses": {
-              "200": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "url": {
-                          "type": "string"
-                        },
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "integer"
-                              },
-                              "charge": {
-                                "type": "string"
-                              },
-                              "object": {
-                                "enum": [
-                                  "refund"
-                                ],
-                                "type": "string"
-                              },
-                              "reason": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              },
-                              "created": {
-                                "type": "integer"
-                              },
-                              "currency": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        },
-                        "object": {
-                          "enum": [
-                            "list"
-                          ],
-                          "type": "string"
-                        },
-                        "has_more": {
-                          "type": "boolean"
-                        }
-                      }
-                    }
-                  }
-                },
-                "description": "A list of refunds"
-              }
-            },
-            "parameters": [
-              {
-                "in": "query",
-                "name": "limit",
-                "schema": {
-                  "type": "integer",
-                  "default": 10,
-                  "maximum": 100,
-                  "minimum": 1
-                },
-                "required": false,
-                "description": "A limit on the number of objects to be returned, between 1 and 100."
-              },
-              {
-                "in": "query",
-                "name": "starting_after",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
-              },
-              {
-                "in": "query",
-                "name": "ending_before",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
-              }
-            ],
-            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
-            "operationId": "stripeListRefunds"
-          }
-        }
-      },
-      "openapi": "3.0.0",
-      "servers": [
-        {
-          "url": "https://api.stripe.com"
-        }
-      ],
-      "components": {
-        "securitySchemes": {
-          "stripeBearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "description": "Authentication with Stripe API key as a Bearer token."
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "stripe_list_refunds_apikey",
-    "securityOption": "stripeApiKey",
-    "securitySecrets": {
-      "x-secret-name": "api_secret_key"
-    },
-    "utilityProvider": "stripe",
-    "openapiSpecification": {
-      "info": {
-        "title": "Stripe List Refunds",
-        "version": "v1",
-        "description": "Lists all refunds in your Stripe account"
-      },
-      "paths": {
-        "/v1/refunds": {
-          "get": {
-            "summary": "List all refunds",
-            "security": [
-              {
-                "stripeApiKey": []
-              }
-            ],
-            "responses": {
-              "200": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "url": {
-                          "type": "string"
-                        },
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "integer"
-                              },
-                              "charge": {
-                                "type": "string"
-                              },
-                              "object": {
-                                "enum": [
-                                  "refund"
-                                ],
-                                "type": "string"
-                              },
-                              "reason": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              },
-                              "created": {
-                                "type": "integer"
-                              },
-                              "currency": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        },
-                        "object": {
-                          "enum": [
-                            "list"
-                          ],
-                          "type": "string"
-                        },
-                        "has_more": {
-                          "type": "boolean"
-                        }
-                      }
-                    }
-                  }
-                },
-                "description": "A list of refunds"
-              }
-            },
-            "parameters": [
-              {
-                "in": "query",
-                "name": "limit",
-                "schema": {
-                  "type": "integer",
-                  "default": 10,
-                  "maximum": 100,
-                  "minimum": 1
-                },
-                "required": false,
-                "description": "A limit on the number of objects to be returned, between 1 and 100."
-              },
-              {
-                "in": "query",
-                "name": "starting_after",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
-              },
-              {
-                "in": "query",
-                "name": "ending_before",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
-              }
-            ],
-            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
-            "operationId": "stripeListRefunds"
-          }
-        }
-      },
-      "openapi": "3.0.0",
-      "servers": [
-        {
-          "url": "https://api.stripe.com"
-        }
-      ],
-      "components": {
-        "securitySchemes": {
-          "stripeApiKey": {
-            "type": "apiKey",
-            "in": "header",
-            "name": "Authorization",
-            "description": "API Key Authentication with Stripe API key prefixed with 'Bearer ' (e.g. 'Bearer sk_test_...')."
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "stripe_list_refunds_basicauth",
-    "securityOption": "stripeBasicAuth",
-    "securitySecrets": {
-      "x-secret-username": "api_secret_key",
-      "x-secret-password": "api_secret_key"
-    },
-    "utilityProvider": "stripe",
-    "openapiSpecification": {
-      "info": {
-        "title": "Stripe List Refunds",
-        "version": "v1",
-        "description": "Lists all refunds in your Stripe account"
-      },
-      "paths": {
-        "/v1/refunds": {
-          "get": {
-            "summary": "List all refunds",
-            "security": [
-              {
-                "stripeBasicAuth": []
-              }
-            ],
-            "responses": {
-              "200": {
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "url": {
-                          "type": "string"
-                        },
-                        "data": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "id": {
-                                "type": "string"
-                              },
-                              "amount": {
-                                "type": "integer"
-                              },
-                              "charge": {
-                                "type": "string"
-                              },
-                              "object": {
-                                "enum": [
-                                  "refund"
-                                ],
-                                "type": "string"
-                              },
-                              "reason": {
-                                "type": "string"
-                              },
-                              "status": {
-                                "type": "string"
-                              },
-                              "created": {
-                                "type": "integer"
-                              },
-                              "currency": {
-                                "type": "string"
-                              }
-                            }
-                          }
-                        },
-                        "object": {
-                          "enum": [
-                            "list"
-                          ],
-                          "type": "string"
-                        },
-                        "has_more": {
-                          "type": "boolean"
-                        }
-                      }
-                    }
-                  }
-                },
-                "description": "A list of refunds"
-              }
-            },
-            "parameters": [
-              {
-                "in": "query",
-                "name": "limit",
-                "schema": {
-                  "type": "integer",
-                  "default": 10,
-                  "maximum": 100,
-                  "minimum": 1
-                },
-                "required": false,
-                "description": "A limit on the number of objects to be returned, between 1 and 100."
-              },
-              {
-                "in": "query",
-                "name": "starting_after",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
-              },
-              {
-                "in": "query",
-                "name": "ending_before",
-                "schema": {
-                  "type": "string"
-                },
-                "required": false,
-                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
-              }
-            ],
-            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
-            "operationId": "stripeListRefunds"
-          }
-        }
-      },
-      "openapi": "3.0.0",
-      "servers": [
-        {
-          "url": "https://api.stripe.com"
-        }
-      ],
-      "components": {
-        "securitySchemes": {
-          "stripeBasicAuth": {
-            "type": "http",
-            "scheme": "basic",
-            "description": "HTTP Basic Authentication with Stripe API key as username and empty password."
-          }
-        }
-      }
-    }
-  },
-  {
-    "id": "chargebee_get_refunds",
+    "id": "chargebee_list_refunds",
     "utilityProvider": "chargebee",
     "openapiSpecification": {
       "openapi": "3.0.0",
       "info": {
-        "title": "Chargebee Refunds",
-        "version": "1.0.0",
-        "description": "API to get refunds from Chargebee"
+        "title": "Chargebee List Refunds",
+        "description": "Returns a list of refund transactions from Chargebee",
+        "version": "v1"
       },
       "servers": [
         {
-          "url": "https://{site_name}.chargebee.com",
+          "url": "https://{site}.chargebee.com",
           "variables": {
-            "site_name": {
-              "default": "your-site",
-              "description": "Your Chargebee site name"
+            "site": {
+              "description": "Your Chargebee site name",
+              "default": "your-site"
             }
           }
         }
       ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Basic authentication using your Chargebee API key as username and empty password"
+          }
+        }
+      },
       "paths": {
-        "/api/v2/credit_notes": {
+        "/api/v1/transactions": {
           "get": {
-            "operationId": "listCreditNotes",
-            "summary": "List credit notes",
+            "operationId": "listRefunds",
+            "summary": "List Chargebee refund transactions",
+            "description": "Returns a list of refund transactions from Chargebee",
             "parameters": [
               {
-                "in": "query",
                 "name": "limit",
+                "in": "query",
+                "description": "Number of records to fetch",
                 "schema": {
                   "type": "integer",
-                  "default": 10
-                },
-                "description": "Number of records to return"
+                  "default": 10,
+                  "maximum": 100
+                }
               },
               {
+                "name": "type[is]",
                 "in": "query",
-                "name": "status",
+                "description": "Filter transactions by type",
                 "schema": {
                   "type": "string",
                   "enum": [
-                    "refunded"
+                    "refund"
                   ]
                 },
-                "description": "Filter by refunded status"
+                "required": true
               }
             ],
             "security": [
               {
-                "chargebeeBasicAuth": []
+                "basicAuth": []
               }
             ],
             "responses": {
               "200": {
-                "description": "Successful response",
+                "description": "List of refund transactions",
                 "content": {
                   "application/json": {
                     "schema": {
@@ -615,40 +77,8 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "credit_note": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "customer_id": {
-                                    "type": "string"
-                                  },
-                                  "subscription_id": {
-                                    "type": "string"
-                                  },
-                                  "reference_invoice_id": {
-                                    "type": "string"
-                                  },
-                                  "type": {
-                                    "type": "string"
-                                  },
-                                  "status": {
-                                    "type": "string"
-                                  },
-                                  "amount_refunded": {
-                                    "type": "integer"
-                                  },
-                                  "refunded_at": {
-                                    "type": "integer"
-                                  },
-                                  "created_at": {
-                                    "type": "integer"
-                                  },
-                                  "currency_code": {
-                                    "type": "string"
-                                  }
-                                }
+                              "transaction": {
+                                "type": "object"
                               }
                             }
                           }
@@ -661,42 +91,33 @@
             }
           }
         }
-      },
-      "components": {
-        "securitySchemes": {
-          "chargebeeBasicAuth": {
-            "type": "http",
-            "scheme": "basic",
-            "description": "Your Chargebee API key as the username with no password"
-          }
-        }
       }
     },
-    "securityOption": "chargebeeBasicAuth",
+    "securityOption": "basicAuth",
     "securitySecrets": {
       "x-secret-username": "api_secret_key"
     }
   },
   {
-    "id": "chargebee_list_refunds",
-    "securityOption": "chargebeeBasicAuth",
+    "id": "chargebee_list_refunds_v2",
+    "securityOption": "basicAuth",
     "securitySecrets": {
       "x-secret-username": "api_secret_key"
     },
     "utilityProvider": "chargebee",
     "openapiSpecification": {
       "info": {
-        "title": "Chargebee Refunds",
-        "version": "1.0.0",
-        "description": "API to get refunds from Chargebee"
+        "title": "Chargebee List Refunds",
+        "version": "v2",
+        "description": "Returns a list of refund transactions from Chargebee"
       },
       "paths": {
-        "/api/v2/credit_notes": {
+        "/api/v2/transactions": {
           "get": {
-            "summary": "List credit notes",
+            "summary": "List Chargebee refund transactions",
             "security": [
               {
-                "chargebeeBasicAuth": []
+                "basicAuth": []
               }
             ],
             "responses": {
@@ -711,40 +132,8 @@
                           "items": {
                             "type": "object",
                             "properties": {
-                              "credit_note": {
-                                "type": "object",
-                                "properties": {
-                                  "id": {
-                                    "type": "string"
-                                  },
-                                  "type": {
-                                    "type": "string"
-                                  },
-                                  "status": {
-                                    "type": "string"
-                                  },
-                                  "created_at": {
-                                    "type": "integer"
-                                  },
-                                  "customer_id": {
-                                    "type": "string"
-                                  },
-                                  "refunded_at": {
-                                    "type": "integer"
-                                  },
-                                  "currency_code": {
-                                    "type": "string"
-                                  },
-                                  "amount_refunded": {
-                                    "type": "integer"
-                                  },
-                                  "subscription_id": {
-                                    "type": "string"
-                                  },
-                                  "reference_invoice_id": {
-                                    "type": "string"
-                                  }
-                                }
+                              "transaction": {
+                                "type": "object"
                               }
                             }
                           }
@@ -753,7 +142,7 @@
                     }
                   }
                 },
-                "description": "Successful response"
+                "description": "List of refund transactions"
               }
             },
             "parameters": [
@@ -762,38 +151,802 @@
                 "name": "limit",
                 "schema": {
                   "type": "integer",
-                  "default": 10
+                  "default": 10,
+                  "maximum": 100
                 },
-                "description": "Number of records to return"
+                "description": "Number of records to fetch"
               },
               {
                 "in": "query",
-                "name": "status",
+                "name": "type[is]",
                 "schema": {
                   "enum": [
-                    "refunded"
+                    "refund"
                   ],
                   "type": "string"
                 },
-                "description": "Filter by refunded status"
+                "required": true,
+                "description": "Filter transactions by type"
               }
             ],
-            "operationId": "listCreditNotes"
+            "description": "Returns a list of refund transactions from Chargebee",
+            "operationId": "listRefunds"
           }
         }
       },
       "openapi": "3.0.0",
       "servers": [
         {
-          "url": "https://agent-base-test.chargebee.com"
+          "url": "https://{site}.chargebee.com",
+          "variables": {
+            "site": {
+              "default": "agent-base-test",
+              "description": "Your Chargebee site name"
+            }
+          }
         }
       ],
       "components": {
         "securitySchemes": {
-          "chargebeeBasicAuth": {
+          "basicAuth": {
             "type": "http",
             "scheme": "basic",
-            "description": "Your Chargebee API key as the username with no password"
+            "description": "Basic authentication using your Chargebee API key as username and empty password"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "chargebee_list_customers",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    },
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "info": {
+        "title": "Chargebee List Customers",
+        "version": "v2",
+        "description": "Returns a list of customers from Chargebee"
+      },
+      "paths": {
+        "/api/v2/customers": {
+          "get": {
+            "summary": "List Chargebee customers",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "customer": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "List of customers"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100
+                },
+                "description": "Number of records to fetch"
+              }
+            ],
+            "description": "Returns a list of customers from Chargebee",
+            "operationId": "listCustomers"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://{site}.chargebee.com",
+          "variables": {
+            "site": {
+              "default": "agent-base-test",
+              "description": "Your Chargebee site name"
+            }
+          }
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Basic authentication using your Chargebee API key as username and empty password"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "chargebee_list_all_transactions",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    },
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "info": {
+        "title": "Chargebee List All Transactions",
+        "version": "v2",
+        "description": "Returns a list of all transactions from Chargebee"
+      },
+      "paths": {
+        "/api/v2/transactions": {
+          "get": {
+            "summary": "List all Chargebee transactions",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "transaction": {
+                                "type": "object"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "List of all transactions"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 25,
+                  "maximum": 100
+                },
+                "description": "Number of records to fetch"
+              }
+            ],
+            "description": "Returns a list of all transactions from Chargebee",
+            "operationId": "listAllTransactions"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://{site}.chargebee.com",
+          "variables": {
+            "site": {
+              "default": "agent-base-test",
+              "description": "Your Chargebee site name"
+            }
+          }
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Basic authentication using your Chargebee API key as username and empty password"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "crisp_message",
+    "utilityProvider": "crisp",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Crisp Message API",
+        "version": "1.0.0",
+        "description": "API to send messages to Crisp conversations"
+      },
+      "servers": [
+        {
+          "url": "https://api.crisp.chat"
+        }
+      ],
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "operationId": "sendCrispMessage",
+            "summary": "Send a message to a Crisp conversation",
+            "parameters": [
+              {
+                "name": "website_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp website ID"
+              },
+              {
+                "name": "session_id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                  "type": "string"
+                },
+                "description": "The Crisp session ID"
+              }
+            ],
+            "requestBody": {
+              "required": true,
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ],
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "text"
+                        ],
+                        "default": "text"
+                      },
+                      "from": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ],
+                        "default": "operator"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "chat"
+                        ],
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "responses": {
+              "200": {
+                "description": "Message sent successfully"
+              }
+            },
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ]
+          }
+        }
+      },
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Basic authentication with Crisp API credentials"
+          }
+        }
+      }
+    },
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "username",
+      "x-secret-password": "password"
+    }
+  },
+  {
+    "id": "crisp_complete",
+    "securityOption": "httpBasic",
+    "securitySecrets": {
+      "x-secret-password": "api_secret_key",
+      "x-secret-username": "api_identifier"
+    },
+    "utilityProvider": "crisp",
+    "openapiSpecification": {
+      "info": {
+        "title": "Crisp API",
+        "version": "1.0.0",
+        "description": "Send messages to Crisp conversations"
+      },
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "summary": "Send a message to a Crisp conversation",
+            "security": [
+              {
+                "httpBasic": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Message sent successfully"
+              }
+            },
+            "parameters": [
+              {
+                "in": "path",
+                "name": "website_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp website ID"
+              },
+              {
+                "in": "path",
+                "name": "session_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp session ID"
+              }
+            ],
+            "operationId": "sendCrispMessage",
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ],
+                    "properties": {
+                      "from": {
+                        "enum": [
+                          "operator"
+                        ],
+                        "type": "string",
+                        "default": "operator"
+                      },
+                      "type": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string",
+                        "default": "text"
+                      },
+                      "origin": {
+                        "enum": [
+                          "chat"
+                        ],
+                        "type": "string",
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": true
+            }
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://api.crisp.chat"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "httpBasic": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic authentication with Crisp API credentials"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "crisp_api_message",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_identifier",
+      "x-secret-password": "api_secret_key"
+    },
+    "utilityProvider": "crisp",
+    "openapiSpecification": {
+      "info": {
+        "title": "Crisp Messaging API",
+        "version": "1.0.0",
+        "description": "Send messages to Crisp conversations following the official API specification"
+      },
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "summary": "Send a message to a Crisp conversation",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Message sent successfully"
+              }
+            },
+            "parameters": [
+              {
+                "in": "path",
+                "name": "website_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp website ID"
+              },
+              {
+                "in": "path",
+                "name": "session_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp session ID"
+              }
+            ],
+            "operationId": "sendMessage",
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ],
+                    "properties": {
+                      "from": {
+                        "enum": [
+                          "operator"
+                        ],
+                        "type": "string",
+                        "default": "operator"
+                      },
+                      "type": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string",
+                        "default": "text"
+                      },
+                      "origin": {
+                        "enum": [
+                          "chat"
+                        ],
+                        "type": "string",
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": true
+            }
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://api.crisp.chat"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic authentication with Crisp API identifier and key"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "crisp_api_complete",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_identifier",
+      "x-secret-password": "api_secret_key"
+    },
+    "utilityProvider": "crisp",
+    "openapiSpecification": {
+      "info": {
+        "title": "Crisp Complete API",
+        "version": "1.0.0",
+        "description": "Send messages to Crisp conversations with proper headers and authentication"
+      },
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "summary": "Send a message to a Crisp conversation",
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Message sent successfully"
+              }
+            },
+            "parameters": [
+              {
+                "in": "path",
+                "name": "website_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp website ID"
+              },
+              {
+                "in": "path",
+                "name": "session_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp session ID"
+              },
+              {
+                "in": "header",
+                "name": "X-Crisp-Tier",
+                "schema": {
+                  "type": "string",
+                  "default": "plugin"
+                },
+                "required": true,
+                "description": "The Crisp tier header, should be 'plugin'"
+              }
+            ],
+            "operationId": "sendCrispMessage",
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ],
+                    "properties": {
+                      "from": {
+                        "enum": [
+                          "operator"
+                        ],
+                        "type": "string",
+                        "default": "operator"
+                      },
+                      "type": {
+                        "enum": [
+                          "text"
+                        ],
+                        "type": "string",
+                        "default": "text"
+                      },
+                      "origin": {
+                        "enum": [
+                          "chat"
+                        ],
+                        "type": "string",
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": true
+            }
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://api.crisp.chat"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic authentication with Crisp API identifier and key"
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "crisp_correct_auth",
+    "securityOption": "basicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_identifier",
+      "x-secret-password": "api_secret_key"
+    },
+    "utilityProvider": "crisp",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Crisp API with Correct Auth",
+        "version": "1.0.0",
+        "description": "Send messages to Crisp with proper authentication"
+      },
+      "servers": [
+        {
+          "url": "https://api.crisp.chat"
+        }
+      ],
+      "paths": {
+        "/v1/website/{website_id}/conversation/{session_id}/message": {
+          "post": {
+            "summary": "Send a message to a Crisp conversation",
+            "operationId": "sendMessage",
+            "parameters": [
+              {
+                "in": "path",
+                "name": "website_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp website ID"
+              },
+              {
+                "in": "path",
+                "name": "session_id",
+                "schema": {
+                  "type": "string"
+                },
+                "required": true,
+                "description": "The Crisp conversation session ID"
+              },
+              {
+                "in": "header",
+                "name": "X-Crisp-Tier",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "plugin"
+                  ]
+                },
+                "required": true,
+                "description": "Tier of the API client"
+              }
+            ],
+            "requestBody": {
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "required": [
+                      "type",
+                      "from",
+                      "origin",
+                      "content"
+                    ],
+                    "properties": {
+                      "from": {
+                        "type": "string",
+                        "enum": [
+                          "operator"
+                        ],
+                        "default": "operator"
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "text"
+                        ],
+                        "default": "text"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "chat"
+                        ],
+                        "default": "chat"
+                      },
+                      "content": {
+                        "type": "string",
+                        "description": "The message content"
+                      }
+                    }
+                  }
+                }
+              },
+              "required": true
+            },
+            "security": [
+              {
+                "basicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Message sent successfully"
+              }
+            }
+          }
+        }
+      },
+      "components": {
+        "securitySchemes": {
+          "basicAuth": {
+            "type": "http",
+            "scheme": "basic"
           }
         }
       }

@@ -11,7 +11,7 @@ import {
     ServerObject,
     SecuritySchemeObject
 } from 'openapi3-ts/oas30';
-import { getOperation } from './utils'; // Assuming getOperation is in a shared utils.ts
+import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // Assuming getOperation is in a shared utils.ts and added credential key helpers
 
 /**
  * Makes an API call based on the ApiTool's OpenAPI specification.
@@ -209,31 +209,34 @@ export const makeApiCall = async (
             securityScheme = securitySchemeRef as SecuritySchemeObject;
         }
 
-        const credentialValue = credentials[schemeName]; // General case for token-like schemes
-        const username = credentials[schemeName + '_username'];
-        const password = credentials[schemeName + '_password'];
+        // Use helpers to get standardized credential keys
+        const basicAuthKeys = getBasicAuthCredentialKeys(schemeName);
+        const singleCredKey = getCredentialKeyForScheme(schemeName);
+
+        const credentialValue = credentials[singleCredKey]; // For API Key, Bearer (raw token/key)
+        const username = credentials[basicAuthKeys.username];    // For Basic Auth username
+        const password = credentials[basicAuthKeys.password];    // For Basic Auth password
 
         switch (securityScheme.type) {
             case 'apiKey':
-                if (credentialValue) {
+                if (credentialValue) { // credentialValue is the raw API key
                     if (!securityScheme.name) {
                         console.error(`${logPrefix} API key security scheme '${schemeName}' is missing required 'name' property.`);
-                        // Optionally throw an error or skip this scheme
-                break;
+                        break;
                     }
                     if (securityScheme.in === 'header') {
                         headers[securityScheme.name] = credentialValue;
                     } else if (securityScheme.in === 'query') {
                         queryParams[securityScheme.name] = credentialValue;
-                    } // 'cookie' not handled here
+                    } 
                 }
                 break;
             case 'http':
-                if (securityScheme.scheme?.toLowerCase() === 'bearer' && credentialValue) {
+                if (securityScheme.scheme?.toLowerCase() === 'bearer' && credentialValue) { // credentialValue is the raw token
                     headers['Authorization'] = `Bearer ${credentialValue}`;
                 }
-                if (securityScheme.scheme?.toLowerCase() === 'basic' && username) {
-                    const effectivePassword = password || ""; // Default password to empty string if null/undefined/empty
+                if (securityScheme.scheme?.toLowerCase() === 'basic' && username) { // username is raw username
+                    const effectivePassword = password || ""; 
                     headers['Authorization'] = `Basic ${Buffer.from(`${username}:${effectivePassword}`).toString('base64')}`;
                 }
                 break;
@@ -252,7 +255,7 @@ export const makeApiCall = async (
         url: finalUrl,
         headers: {
             'Accept': 'application/json',
-            ...(credentials as Record<string, string>),
+            ...headers,
         },
         params: queryParams,
         data: requestBodyForCall,

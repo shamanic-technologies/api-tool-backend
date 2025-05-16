@@ -17,7 +17,7 @@ import { readUtilities, writeUtilities } from './databaseService';
 // import { checkAuth, CheckAuthResultData } from '../clients/toolAuthServiceClient';
 // Import the new execution handler
 import { handleExecution } from './executionService';
-import { getOperation, deriveSchemaFromOperation } from './utils'; // For deriving schema for ApiToolInfo
+import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // For deriving schema for ApiToolInfo and credential keys
 import { gsmClient } from '..'; // Changed from ../index.js
 import { generateSecretManagerId } from '@agent-base/secret-client'; // Added import for shared utility
 
@@ -148,47 +148,57 @@ export const runToolExecution = async (
             
             if (securityScheme && !('$ref' in securityScheme)) {
                 if (securityScheme.type === 'apiKey') {
-                    const apiKeyNameInSpec = securityScheme.name; // Required by OpenAPI spec for apiKey
+                    const apiKeyNameInSpec = securityScheme.name; // Actual name for header/query
+                    const apiKeySchemeName = apiTool.securityOption; // Scheme name, e.g., 'myApiKeyAuth'
                     const apiKeyType = apiTool.securitySecrets?.['x-secret-name']; // This is a UtilityInputSecret string value
                     
-                    // Ensure apiKeyNameInSpec is a valid string for indexing and details
-                    const effectiveApiKeyName = apiKeyNameInSpec || 'api_key_name_missing_in_spec';
+                    const effectiveApiKeyNameForLog = apiKeyNameInSpec || 'api_key_name_missing_in_spec';
 
                     if (!apiKeyType) {
-                        console.error(`${logPrefix} Misconfig: apiKey '${apiTool.securityOption}' for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
-                        // Use a default UtilityInputSecret type if apiKeyType is missing
-                        missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyName, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: `Enter API Key for ${effectiveApiKeyName}` });
+                        console.error(`${logPrefix} Misconfig: apiKey '${apiKeySchemeName}' for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
+                        missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyNameForLog, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: `Enter API Key for ${effectiveApiKeyNameForLog}` });
                     } else {
-                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${apiKeyType}' (for apiKey ${effectiveApiKeyName})`);
+                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${apiKeyType}' (for apiKey scheme '${apiKeySchemeName}')`);
                         const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), apiKeyType);
+                        console.log(`${logPrefix} Attempting to fetch GSM secret for API Key '${apiKeySchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const secretValue = await gsmClient.getSecret(gsmSecretId);
+                            console.log(`${logPrefix} GSM response for '${gsmSecretId}': ${secretValue === null ? 'null' : secretValue === undefined ? 'undefined' : (secretValue === '' ? 'empty string' : 'received value')}`);
                             if (secretValue) {
-                                resolvedSecrets[effectiveApiKeyName] = secretValue;
+                                // Store raw API key value under the scheme name
+                                const credKey = getCredentialKeyForScheme(apiKeySchemeName);
+                                resolvedSecrets[credKey] = secretValue;
+                                console.log(`${logPrefix} Stored raw API key for scheme '${apiKeySchemeName}' under key '${credKey}'.`);
                             } else {
-                                missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyName, secretType: apiKeyType as UtilityInputSecret, inputPrompt: `Enter API Key for ${effectiveApiKeyName}` });
+                                missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyNameForLog, secretType: apiKeyType as UtilityInputSecret, inputPrompt: `Enter API Key for ${effectiveApiKeyNameForLog}` });
                             }
                         } catch (e) { 
-                            missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyName, secretType: apiKeyType as UtilityInputSecret, inputPrompt: `Enter API Key for ${effectiveApiKeyName}` }); 
+                            missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyNameForLog, secretType: apiKeyType as UtilityInputSecret, inputPrompt: `Enter API Key for ${effectiveApiKeyNameForLog}` }); 
                         }
                     }
                 } else if (securityScheme.type === 'http' && securityScheme.scheme === 'bearer') {
+                    const bearerSchemeName = apiTool.securityOption; // Scheme name, e.g., 'myBearerAuth'
                     const bearerTokenType = apiTool.securitySecrets?.['x-secret-name']; // This is a UtilityInputSecret string value
                     if (!bearerTokenType) {
-                        console.error(`${logPrefix} Misconfig: Bearer token for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
-                        // Default to API_SECRET_KEY if specific bearer type isn't configured properly, or use a dedicated one if available
-                        missingSecretsDetails.push({ secretKeyInSpec: 'Authorization', secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: 'Enter Bearer Token' });
+                        console.error(`${logPrefix} Misconfig: Bearer token scheme '${bearerSchemeName}' for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
+                        missingSecretsDetails.push({ secretKeyInSpec: bearerSchemeName, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: 'Enter Bearer Token' });
                     } else {
+                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${bearerTokenType}' (for bearer scheme '${bearerSchemeName}')`);
                         const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), bearerTokenType);
+                        console.log(`${logPrefix} Attempting to fetch GSM secret for Bearer scheme '${bearerSchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const tokenValue = await gsmClient.getSecret(gsmSecretId);
+                            console.log(`${logPrefix} GSM response for '${gsmSecretId}': ${tokenValue === null ? 'null' : tokenValue === undefined ? 'undefined' : (tokenValue === '' ? 'empty string' : 'received value')}`);
                             if (tokenValue) {
-                                resolvedSecrets['Authorization'] = `Bearer ${tokenValue}`;
+                                // Store raw token value under the scheme name
+                                const credKey = getCredentialKeyForScheme(bearerSchemeName);
+                                resolvedSecrets[credKey] = tokenValue;
+                                console.log(`${logPrefix} Stored raw Bearer token for scheme '${bearerSchemeName}' under key '${credKey}'.`);
                             } else {
-                                missingSecretsDetails.push({ secretKeyInSpec: 'Authorization', secretType: bearerTokenType as UtilityInputSecret, inputPrompt: 'Enter Bearer Token' });
+                                missingSecretsDetails.push({ secretKeyInSpec: bearerSchemeName, secretType: bearerTokenType as UtilityInputSecret, inputPrompt: 'Enter Bearer Token' });
                             }
                         } catch (e) { 
-                            missingSecretsDetails.push({ secretKeyInSpec: 'Authorization', secretType: bearerTokenType as UtilityInputSecret, inputPrompt: 'Enter Bearer Token' });
+                            missingSecretsDetails.push({ secretKeyInSpec: bearerSchemeName, secretType: bearerTokenType as UtilityInputSecret, inputPrompt: 'Enter Bearer Token' });
                         }
                     }
                 } else if (securityScheme.type === 'http' && securityScheme.scheme === 'basic') {
@@ -202,8 +212,10 @@ export const runToolExecution = async (
                         missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: UtilityInputSecret.USERNAME, inputPrompt: 'Enter Username' });
                     } else {
                         const gsmUsernameSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), usernameSecretType);
+                        console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Username with ID: ${gsmUsernameSecretId}`);
                         try {
                             usernameValue = await gsmClient.getSecret(gsmUsernameSecretId);
+                            console.log(`${logPrefix} GSM response for '${gsmUsernameSecretId}' (username): ${usernameValue === null ? 'null' : usernameValue === undefined ? 'undefined' : (usernameValue === '' ? 'empty string' : 'received value')}`);
                             if (!usernameValue) {
                                 missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: usernameSecretType as UtilityInputSecret, inputPrompt: 'Enter Username' });
                             }
@@ -214,8 +226,10 @@ export const runToolExecution = async (
 
                     if (passwordSecretType) {
                         const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), passwordSecretType);
+                        console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Password with ID: ${gsmPasswordSecretId}`);
                         try {
                             passwordValue = (await gsmClient.getSecret(gsmPasswordSecretId)) || "";
+                            console.log(`${logPrefix} GSM response for '${gsmPasswordSecretId}' (password): ${passwordValue === null ? 'null' : passwordValue === undefined ? 'undefined' : (passwordValue === '' ? 'empty string' : 'received value (or empty if originally empty)')}`);
                         } catch (e) { 
                             missingSecretsDetails.push({ secretKeyInSpec: 'password', secretType: passwordSecretType as UtilityInputSecret, inputPrompt: 'Enter Password' });
                         }
@@ -226,10 +240,17 @@ export const runToolExecution = async (
                         (s.secretKeyInSpec === 'password' && s.secretType === (passwordSecretType as UtilityInputSecret))
                     );
 
+                    // If username was fetched (even if password wasn't, it defaults to "") and no missing details reported for these specific secrets
                     if (usernameValue && !basicAuthSecretsMissing) {
-                        const basicToken = Buffer.from(`${usernameValue}:${passwordValue}`).toString('base64');
-                        resolvedSecrets['Authorization'] = `Basic ${basicToken}`;
+                        // Store raw username and password for makeApiCall to construct the header
+                        const basicAuthKeys = getBasicAuthCredentialKeys(apiTool.securityOption);
+                        resolvedSecrets[basicAuthKeys.username] = usernameValue;
+                        resolvedSecrets[basicAuthKeys.password] = passwordValue;
+                        console.log(`${logPrefix} Stored raw username and password for Basic Auth scheme '${apiTool.securityOption}' under keys '${basicAuthKeys.username}', '${basicAuthKeys.password}'.`);
                     } else if (!usernameValue && usernameSecretType && !basicAuthSecretsMissing) {
+                        // This case implies username was expected (usernameSecretType exists), GSM returned null/empty, 
+                        // and it wasn't already added to missingSecretsDetails (e.g. by GSM error).
+                        // Ensure it's marked as missing if not already.
                         if (!missingSecretsDetails.some(s => s.secretKeyInSpec === 'username' && s.secretType === (usernameSecretType as UtilityInputSecret))){
                              missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: usernameSecretType as UtilityInputSecret, inputPrompt: 'Enter Username' });
                         }

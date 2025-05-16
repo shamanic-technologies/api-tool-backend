@@ -191,3 +191,28 @@ export const deriveSchemaFromOperation = (operation: OperationObject, openapiSpe
     return combinedSchema;
 };
 
+// --- Credential Key Naming Convention Helpers ---
+
+/**
+ * Gets the key used to store/retrieve a simple credential (like an API key or a raw token)
+ * in the resolvedSecrets/credentials object, based on its security scheme name.
+ * @param {string} schemeName The name of the security scheme (e.g., 'myApiKeyAuth', 'myBearerAuth').
+ * @returns {string} The key for the credential object (which is typically the schemeName itself).
+ */
+export const getCredentialKeyForScheme = (schemeName: string): string => {
+    return schemeName;
+};
+
+/**
+ * Gets the keys used to store/retrieve username and password components for Basic Authentication
+ * in the resolvedSecrets/credentials object, based on its security scheme name.
+ * @param {string} schemeName The name of the security scheme (e.g., 'basicAuth').
+ * @returns {{ username: string, password: string }} An object containing the keys for username and password.
+ */
+export const getBasicAuthCredentialKeys = (schemeName: string): { username: string, password: string } => {
+    return {
+        username: `${schemeName}_username`,
+        password: `${schemeName}_password`,
+    };
+};
+

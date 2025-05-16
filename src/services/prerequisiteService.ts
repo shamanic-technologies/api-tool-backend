@@ -6,7 +6,7 @@ import {
     UtilityInputSecret // Keep for now, for casting target
 } from '@agent-base/types';
 
-import { getOperation } from './utils'; // Import from utils
+import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // Import from utils, including new helpers
 
 /**
  * Checks prerequisites (Secrets) based on the ApiTool's OpenAPI specification and pre-fetched secrets.
@@ -105,25 +105,28 @@ export const checkPrerequisites = async (
     // Logic to check resolvedSecrets based on securitySchemeObject type
     switch (securitySchemeObject.type) {
         case 'apiKey':
-            const apiKeyName = securitySchemeObject.name; // e.g., X-API-KEY (header/query name)
+            const apiKeyHeaderQueryName = securitySchemeObject.name; // e.g., X-API-KEY (actual header/query name)
             const apiKeySecretType = apiTool.securitySecrets["x-secret-name"]; // e.g., api_secret_key (UtilityInputSecret)
+            const apiKeySchemeKey = getCredentialKeyForScheme(chosenSchemeName); // Key used in resolvedSecrets, e.g., "myApiKeyAuth"
             
-            if (!apiKeyName) {
-                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' has no 'name'.`);
+            if (!apiKeyHeaderQueryName) { // securitySchemeObject.name is required for apiKey by OpenAPI
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' has no 'name' in its spec.`);
                 allPrerequisitesMet = false; 
                 break;
             }
             if (!apiKeySecretType) {
-                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' needs 'x-secret-name'.`);
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' needs 'x-secret-name' in tool's securitySecrets.`);
                 allPrerequisitesMet = false;
                 break;
             }
 
-            if (resolvedSecrets[apiKeyName] && typeof resolvedSecrets[apiKeyName] === 'string') {
-                console.log(`${logPrefix} API Key for '${apiKeyName}' found in resolvedSecrets.`);
-                fetchedCredentials[apiKeyName] = resolvedSecrets[apiKeyName];
+            // Check if the raw API key is present in resolvedSecrets under the scheme name key
+            if (resolvedSecrets[apiKeySchemeKey] && typeof resolvedSecrets[apiKeySchemeKey] === 'string') {
+                console.log(`${logPrefix} API Key (raw value for scheme '${chosenSchemeName}') found in resolvedSecrets under key '${apiKeySchemeKey}'.`);
+                // Pass the raw key to apiCallService, it will use securitySchemeObject.name and securitySchemeObject.in
+                fetchedCredentials[apiKeySchemeKey] = resolvedSecrets[apiKeySchemeKey];
             } else {
-                console.warn(`${logPrefix} API Key for '${apiKeyName}' (type: ${apiKeySecretType}) NOT found in resolvedSecrets.`);
+                console.warn(`${logPrefix} API Key (raw value for scheme '${chosenSchemeName}', type: ${apiKeySecretType}) NOT found in resolvedSecrets under key '${apiKeySchemeKey}'.`);
                 allPrerequisitesMet = false;
                 missingSetupSecrets.push(apiKeySecretType as UtilityInputSecret);
             }
@@ -131,18 +134,22 @@ export const checkPrerequisites = async (
 
         case 'http':
             if (securitySchemeObject.scheme === 'bearer') {
-                const bearerSecretType = apiTool.securitySecrets["x-secret-name"]; // e.g., bearer_token (UtilityInputSecret)
+                const bearerSecretType = apiTool.securitySecrets["x-secret-name"]; // e.g., bearer_token_type (UtilityInputSecret)
+                const bearerSchemeKey = getCredentialKeyForScheme(chosenSchemeName); // Key used in resolvedSecrets
+
                 if (!bearerSecretType) {
-                    console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Bearer needs 'x-secret-name'.`);
+                    console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Bearer scheme '${chosenSchemeName}' needs 'x-secret-name' in tool's securitySecrets.`);
                     allPrerequisitesMet = false;
                     break;
                 }
-                // utilityService should place the full "Bearer <token>" string into resolvedSecrets['Authorization']
-                if (resolvedSecrets['Authorization'] && typeof resolvedSecrets['Authorization'] === 'string' && resolvedSecrets['Authorization'].startsWith('Bearer ')) {
-                    console.log(`${logPrefix} HTTP Bearer 'Authorization' token found in resolvedSecrets.`);
-                    fetchedCredentials['Authorization'] = resolvedSecrets['Authorization'];
+
+                // Check if the raw bearer token is present in resolvedSecrets under the scheme name key
+                if (resolvedSecrets[bearerSchemeKey] && typeof resolvedSecrets[bearerSchemeKey] === 'string') {
+                    console.log(`${logPrefix} HTTP Bearer token (raw value for scheme '${chosenSchemeName}') found in resolvedSecrets under key '${bearerSchemeKey}'.`);
+                    // Pass the raw token to apiCallService
+                    fetchedCredentials[bearerSchemeKey] = resolvedSecrets[bearerSchemeKey];
                 } else {
-                    console.warn(`${logPrefix} HTTP Bearer 'Authorization' token (underlying type: ${bearerSecretType}) NOT found or invalid in resolvedSecrets.`);
+                    console.warn(`${logPrefix} HTTP Bearer token (raw value for scheme '${chosenSchemeName}', underlying type: ${bearerSecretType}) NOT found or invalid in resolvedSecrets under key '${bearerSchemeKey}'.`);
                     allPrerequisitesMet = false;
                     missingSetupSecrets.push(bearerSecretType as UtilityInputSecret);
                 }
@@ -150,24 +157,41 @@ export const checkPrerequisites = async (
                 const userSecretType = apiTool.securitySecrets["x-secret-username"];
                 const passSecretType = apiTool.securitySecrets["x-secret-password"]; // This is optional
 
-                if (!userSecretType) {
-                     console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Basic needs 'x-secret-username'.`);
+                if (!userSecretType) { // Username is essential for basic auth
+                     console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Basic scheme '${chosenSchemeName}' needs 'x-secret-username' in tool's securitySecrets.`);
                      allPrerequisitesMet = false;
-                     // If username type isn't defined, can't ask for it.
-                     if (passSecretType) missingSetupSecrets.push(passSecretType as UtilityInputSecret); // Still ask for password if defined
+                     if (passSecretType) missingSetupSecrets.push(passSecretType as UtilityInputSecret); // Still ask for password's UtilityInputSecret type if defined
                      break;
                 }
                 
-                // utilityService should place the full "Basic <base64_token>" string into resolvedSecrets['Authorization']
-                if (resolvedSecrets['Authorization'] && typeof resolvedSecrets['Authorization'] === 'string' && resolvedSecrets['Authorization'].startsWith('Basic ')) {
-                    console.log(`${logPrefix} HTTP Basic 'Authorization' token found in resolvedSecrets.`);
-                    fetchedCredentials['Authorization'] = resolvedSecrets['Authorization'];
+                const basicAuthKeys = getBasicAuthCredentialKeys(chosenSchemeName);
+
+                // Check if the raw username component is present in resolvedSecrets
+                if (resolvedSecrets[basicAuthKeys.username] && typeof resolvedSecrets[basicAuthKeys.username] === 'string') {
+                    console.log(`${logPrefix} HTTP Basic username component found in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.username}'.`);
+                    fetchedCredentials[basicAuthKeys.username] = resolvedSecrets[basicAuthKeys.username];
+                    
+                    // Handle password: it might be present, empty, or null if not defined/fetched
+                    if (resolvedSecrets.hasOwnProperty(basicAuthKeys.password)) { // Check if key exists, even if value is null/empty
+                        fetchedCredentials[basicAuthKeys.password] = resolvedSecrets[basicAuthKeys.password];
+                         console.log(`${logPrefix} HTTP Basic password component found (or explicitly null/empty) in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.password}'.`);
+                    } else if (passSecretType) {
+                        // Password was expected by config (passSecretType exists), but not found in resolvedSecrets.
+                        // This implies it's missing for setup.
+                        console.warn(`${logPrefix} HTTP Basic password component (type: ${passSecretType}) was expected but NOT found in resolvedSecrets for scheme '${chosenSchemeName}'.`);
+                        allPrerequisitesMet = false; // Mark as not met if explicitly configured password type is absent
+                        missingSetupSecrets.push(passSecretType as UtilityInputSecret);
+                    } else {
+                        // No password configured via passSecretType, so treat as legitimately absent or optional.
+                        // apiCallService will default to empty string if this key is missing or value is null.
+                        fetchedCredentials[basicAuthKeys.password] = null; 
+                         console.log(`${logPrefix} HTTP Basic password component not configured or not found in resolvedSecrets for scheme '${chosenSchemeName}'; will default if needed.`);
+                    }
                 } else {
-                    console.warn(`${logPrefix} HTTP Basic 'Authorization' token NOT found or invalid in resolvedSecrets.`);
+                    console.warn(`${logPrefix} HTTP Basic username component (type: ${userSecretType}) NOT found in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.username}'.`);
                     allPrerequisitesMet = false;
-                    // If Basic Auth header is missing, then both username and password (if defined) are considered missing for setup form.
                     missingSetupSecrets.push(userSecretType as UtilityInputSecret);
-                    if (passSecretType) {
+                    if (passSecretType) { // If password was also expected
                         missingSetupSecrets.push(passSecretType as UtilityInputSecret);
                     }
                 }

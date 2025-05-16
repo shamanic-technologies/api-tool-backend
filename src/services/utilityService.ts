@@ -19,7 +19,8 @@ import {
     // updateApiTool, // Add if/when an update utility function is needed
     // deleteApiTool, // Add if/when a delete utility function is needed
 } from './databaseService';
-import { ApiToolRecord } from '../types/db.types';
+import { ApiToolRecord, ApiToolExecutionRecord } from '../types/db.types';
+import { recordApiToolExecution } from './databaseService'; // Added import
 
 import { handleExecution } from './executionService';
 import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils';
@@ -325,6 +326,24 @@ export const runToolExecution = async (
                 requiredSecretInputs: requiredStandardSecrets,
                 requiredActionConfirmations: [], 
             };
+
+            const executionOutcomeForDb: Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'> = {
+                api_tool_id: apiToolRecord.id,
+                user_id: agentServiceCredentials.clientUserId,
+                input: params, 
+                output: { success: true, data: setupNeededData }, 
+                status_code: 200, 
+                error: 'Prerequisites not met, setup needed.',
+                error_details: JSON.stringify(setupNeededData),
+                hint: setupNeededData.description, 
+            };
+
+            try {
+                await recordApiToolExecution(executionOutcomeForDb);
+            } catch (dbLogError) {
+                console.error(`${logPrefix} FAILED to record SETUP NEEDED to DB from utilityService:`, dbLogError);
+            }
+
             return { success: true, data: setupNeededData };
         }
 

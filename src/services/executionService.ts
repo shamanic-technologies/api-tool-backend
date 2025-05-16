@@ -4,6 +4,7 @@ import {
     SuccessResponse,
     ErrorResponse,
     AgentServiceCredentials,
+    SetupNeeded,
 } from '@agent-base/types';
 import axios from 'axios';
 import { ApiToolExecutionRecord } from '../types/db.types';
@@ -48,45 +49,54 @@ export const handleExecution = async (
                 error_details: JSON.stringify(validationResult.details)
             };
             response = validationResult;
-            // Log and return immediately
-            await recordApiToolExecution({
-                api_tool_id: apiTool.id,
-                user_id: agentServiceCredentials.clientUserId, // Using clientUserId
-                input: executionOutcome.input,
-                output: executionOutcome.output,
-                status_code: executionOutcome.status_code!,
-                error: executionOutcome.error,
-                error_details: executionOutcome.error_details,
-            });
+            try {
+                await recordApiToolExecution({
+                    api_tool_id: apiTool.id,
+                    user_id: agentServiceCredentials.clientUserId, 
+                    input: executionOutcome.input,
+                    output: executionOutcome.output,
+                    status_code: executionOutcome.status_code!,
+                    error: executionOutcome.error,
+                    error_details: executionOutcome.error_details,
+                });
+            } catch (dbLogError) {
+                console.error(`${logPrefix} FAILED to record VALIDATION FAILURE to DB:`, dbLogError);
+            }
             return response;
         }
         const validatedParams = (validationResult as { validatedParams: Record<string, any> }).validatedParams;
-        executionOutcome.input = validatedParams; // Log validated params
+        executionOutcome.input = validatedParams; // Log validated params for subsequent logging attempts
 
         // 2. Check Prerequisites (using prerequisiteService)
         const prereqResult = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
         if (!prereqResult.prerequisitesMet) {
+            const setupResponse = prereqResult.setupNeededResponse! as SuccessResponse<SetupNeeded>; 
+            const hintFromData = (setupResponse.data as any)?.hint;
+
             executionOutcome = {
-                ...executionOutcome, // Keep previously set input
-                output: prereqResult.setupNeededResponse,
-                status_code: 424, // Failed Dependency / Setup Needed
-                error: 'Prerequisites not met.',
-                error_details: JSON.stringify(prereqResult.setupNeededResponse),
-                hint: prereqResult.setupNeededResponse?.hint
+                ...executionOutcome, 
+                output: setupResponse, // This is the full SuccessResponse<SetupNeeded>
+                status_code: 200, // SetupNeeded is a successful response indicating next steps
+                error: 'Prerequisites not met, setup needed.', 
+                error_details: JSON.stringify(setupResponse.data), // Log the SetupNeeded object itself
+                hint: hintFromData // Use the hint extracted from setupResponse.data
             };
-            // Non-null assertion is safe here due to prerequisitesMet check
-            // Ensure setupNeededResponse is part of ApiToolExecutionResponse union
-            response = prereqResult.setupNeededResponse! as ApiToolExecutionResponse;
-            await recordApiToolExecution({
-                api_tool_id: apiTool.id,
-                user_id: agentServiceCredentials.clientUserId,
-                input: executionOutcome.input,
-                output: executionOutcome.output,
-                status_code: executionOutcome.status_code!,
-                error: executionOutcome.error,
-                error_details: executionOutcome.error_details,
-                hint: executionOutcome.hint,
-            });
+            response = setupResponse; // This is what gets sent to client
+            
+            try {
+                await recordApiToolExecution({
+                    api_tool_id: apiTool.id,
+                    user_id: agentServiceCredentials.clientUserId,
+                    input: executionOutcome.input || params, 
+                    output: executionOutcome.output,
+                    status_code: executionOutcome.status_code!, 
+                    error: executionOutcome.error,
+                    error_details: executionOutcome.error_details,
+                    hint: executionOutcome.hint,
+                });
+            } catch (dbLogError) {
+                console.error(`${logPrefix} FAILED to record PREREQUISITE FAILURE (Setup Needed) to DB:`, dbLogError);
+            }
             return response;
         }
         const credentials = prereqResult.credentials!;
@@ -163,16 +173,15 @@ export const handleExecution = async (
         await recordApiToolExecution({
             api_tool_id: apiTool.id,
             user_id: agentServiceCredentials.clientUserId,
-            input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set (e.g. early error)
+            input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set
             output: executionOutcome.output,
-            status_code: executionOutcome.status_code!,
+            status_code: executionOutcome.status_code!, // Should be set in success or catch block
             error: executionOutcome.error,
             error_details: executionOutcome.error_details,
             hint: executionOutcome.hint,
         });
     } catch (dbError) {
-        // Log db errors but don't let them overshadow the original execution response
-        console.error(`${logPrefix} Failed to record API tool execution to database:`, dbError);
+        console.error(`${logPrefix} FAILED to record FINAL execution outcome to database:`, dbError);
     }
 
     return response;

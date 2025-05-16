@@ -1,32 +1,11 @@
 import {
     ApiTool,
-    // ExternalUtilityTool, // Removed
-    // AuthMethod, // Removed
     SuccessResponse,
-    // UtilityActionConfirmation, // Removed - to be replaced by OpenAPI driven setup logic
-    // UtilityInputSecret, // Removed - to be replaced by x-shamanic-secret-name or similar
-    // mapUtilityProviderToOAuthProvider, // Removed - OAuth provider info should come from OpenAPI or ApiTool
-    ServiceResponse,
-    SecretValue,
-    GetSecretRequest,
-    UserType,
     AgentServiceCredentials,
-    UtilityProvider, // May still be needed for secret service or OAuth provider mapping
-    UtilitySecretType, // May need to be adapted or used with x-shamanic-secret-name
     SetupNeeded,
     UtilityInputSecret // Keep for now, for casting target
 } from '@agent-base/types';
-import {
-    OpenAPIObject,
-    OperationObject,
-    SecuritySchemeObject,
-    ReferenceObject,
-    SecurityRequirementObject
-} from 'openapi3-ts/oas30';
 
-// Import client functions
-// import { checkAuth, CheckAuthResultData } from '../clients/toolAuthServiceClient';
-import { getSecretApiClient } from '@agent-base/api-client';
 import { getOperation } from './utils'; // Import from utils
 
 /**
@@ -56,7 +35,7 @@ export const checkPrerequisites = async (
 
     const operation = getOperation(apiTool.openapiSpecification, logPrefix);
     if (!operation) {
-        console.error(`${logPrefix} Could not extract a single operation from ApiTool openapiSpecification.`);
+        console.error(`${logPrefix} Could not extract a single operation for ${apiTool.id}.`);
         return {
             prerequisitesMet: false,
             setupNeededResponse: {
@@ -80,13 +59,13 @@ export const checkPrerequisites = async (
 
     const chosenSchemeName = apiTool.securityOption;
     if (!chosenSchemeName) {
-        console.log(`${logPrefix} No securityOption defined. Assuming no auth needed.`);
+        console.log(`${logPrefix} No securityOption for tool ${apiTool.id}. Assuming no auth.`);
         return { prerequisitesMet: true, credentials: {} };
     }
 
     const securitySchemeObject = apiTool.openapiSpecification.components?.securitySchemes?.[chosenSchemeName];
     if (!securitySchemeObject) {
-        console.error(`${logPrefix} Defined securityOption '${chosenSchemeName}' not found in openapiSpecification.components.securitySchemes.`);
+        console.error(`${logPrefix} securityOption '${chosenSchemeName}' not found in spec for ${apiTool.id}.`);
         return {
             prerequisitesMet: false,
             setupNeededResponse: {
@@ -94,9 +73,9 @@ export const checkPrerequisites = async (
                 data: {
                     needsSetup: true,
                     utilityProvider: apiTool.utilityProvider,
-                    message: `Invalid tool configuration: Security option '${chosenSchemeName}' not defined. Aborting.`, 
+                    message: `Invalid tool configuration: Security option '${chosenSchemeName}' not defined.`, 
                     title: `Configuration Error for ${apiTool.id}`,
-                    description: `Please check the openapiSpecification for tool ${apiTool.id}.`,
+                    description: `Check openapiSpecification for tool ${apiTool.id}.`,
                     requiredSecretInputs: [],
                     requiredActionConfirmations: []
                 }
@@ -105,7 +84,7 @@ export const checkPrerequisites = async (
     }
     
     if ('$ref' in securitySchemeObject) {
-        console.error(`${logPrefix} Security scheme '${chosenSchemeName}' is a ReferenceObject ($ref). Not supported here.`);
+        console.error(`${logPrefix} Security scheme '${chosenSchemeName}' for ${apiTool.id} is a $ref. Not supported.`);
         return {
             prerequisitesMet: false,
             setupNeededResponse: {
@@ -113,7 +92,7 @@ export const checkPrerequisites = async (
                 data: {
                     needsSetup: true,
                     utilityProvider: apiTool.utilityProvider,
-                    message: `Invalid tool configuration: Security option '${chosenSchemeName}' is a $ref. Aborting.`, 
+                    message: `Invalid tool configuration: Security option '${chosenSchemeName}' is a $ref.`, 
                     title: `Configuration Error for ${apiTool.id}`,
                     description: `Define security schemes directly for tool ${apiTool.id}.`,
                     requiredSecretInputs: [],
@@ -130,12 +109,12 @@ export const checkPrerequisites = async (
             const apiKeySecretType = apiTool.securitySecrets["x-secret-name"]; // e.g., api_secret_key (UtilityInputSecret)
             
             if (!apiKeyName) {
-                console.error(`${logPrefix} Misconfiguration for tool ${apiTool.id}: apiKey scheme '${chosenSchemeName}' has no 'name' property.`);
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' has no 'name'.`);
                 allPrerequisitesMet = false; 
                 break;
             }
             if (!apiKeySecretType) {
-                console.error(`${logPrefix} Misconfiguration for tool ${apiTool.id}: apiKey scheme '${chosenSchemeName}' chosen, but no 'x-secret-name' in securitySecrets.`);
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: apiKey '${chosenSchemeName}' needs 'x-secret-name'.`);
                 allPrerequisitesMet = false;
                 break;
             }
@@ -146,7 +125,7 @@ export const checkPrerequisites = async (
             } else {
                 console.warn(`${logPrefix} API Key for '${apiKeyName}' (type: ${apiKeySecretType}) NOT found in resolvedSecrets.`);
                 allPrerequisitesMet = false;
-                missingSetupSecrets.push(apiKeySecretType);
+                missingSetupSecrets.push(apiKeySecretType as UtilityInputSecret);
             }
             break;
 
@@ -154,7 +133,7 @@ export const checkPrerequisites = async (
             if (securitySchemeObject.scheme === 'bearer') {
                 const bearerSecretType = apiTool.securitySecrets["x-secret-name"]; // e.g., bearer_token (UtilityInputSecret)
                 if (!bearerSecretType) {
-                    console.error(`${logPrefix} Misconfiguration for tool ${apiTool.id}: HTTP Bearer scheme chosen, but no 'x-secret-name' in securitySecrets.`);
+                    console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Bearer needs 'x-secret-name'.`);
                     allPrerequisitesMet = false;
                     break;
                 }
@@ -165,17 +144,17 @@ export const checkPrerequisites = async (
                 } else {
                     console.warn(`${logPrefix} HTTP Bearer 'Authorization' token (underlying type: ${bearerSecretType}) NOT found or invalid in resolvedSecrets.`);
                     allPrerequisitesMet = false;
-                    missingSetupSecrets.push(bearerSecretType);
+                    missingSetupSecrets.push(bearerSecretType as UtilityInputSecret);
                 }
             } else if (securitySchemeObject.scheme === 'basic') {
                 const userSecretType = apiTool.securitySecrets["x-secret-username"];
                 const passSecretType = apiTool.securitySecrets["x-secret-password"]; // This is optional
 
                 if (!userSecretType) {
-                     console.error(`${logPrefix} Misconfiguration for tool ${apiTool.id}: HTTP Basic scheme chosen, but no 'x-secret-username' in securitySecrets.`);
+                     console.error(`${logPrefix} Misconfig for ${apiTool.id}: HTTP Basic needs 'x-secret-username'.`);
                      allPrerequisitesMet = false;
                      // If username type isn't defined, can't ask for it.
-                     if (passSecretType) missingSetupSecrets.push(passSecretType); // Still ask for password if defined
+                     if (passSecretType) missingSetupSecrets.push(passSecretType as UtilityInputSecret); // Still ask for password if defined
                      break;
                 }
                 
@@ -187,13 +166,13 @@ export const checkPrerequisites = async (
                     console.warn(`${logPrefix} HTTP Basic 'Authorization' token NOT found or invalid in resolvedSecrets.`);
                     allPrerequisitesMet = false;
                     // If Basic Auth header is missing, then both username and password (if defined) are considered missing for setup form.
-                    missingSetupSecrets.push(userSecretType);
+                    missingSetupSecrets.push(userSecretType as UtilityInputSecret);
                     if (passSecretType) {
-                        missingSetupSecrets.push(passSecretType);
+                        missingSetupSecrets.push(passSecretType as UtilityInputSecret);
                     }
                 }
             } else {
-                console.warn(`${logPrefix} Unsupported HTTP scheme for tool ${apiTool.id}: ${securitySchemeObject.scheme}`);
+                console.warn(`${logPrefix} Unsupp. HTTP scheme for ${apiTool.id}: ${securitySchemeObject.scheme}`);
                 allPrerequisitesMet = false; // Or handle as a tool configuration error
             }
             break;
@@ -208,21 +187,42 @@ export const checkPrerequisites = async (
         //     break;
 
         default:
-            console.warn(`${logPrefix} Unsupported security scheme type for tool ${apiTool.id}: ${securitySchemeObject.type}`);
+            console.warn(`${logPrefix} Unsupp. security scheme type for ${apiTool.id}: ${securitySchemeObject.type}`);
             allPrerequisitesMet = false; // Or handle as a tool configuration error
     }
 
     if (!allPrerequisitesMet) {
-        console.log(`${logPrefix} Not all prerequisites met based on resolvedSecrets. Missing types for setup:`, missingSetupSecrets.map(s => String(s)));
-        // Filter out duplicates just in case, though logic above should prevent it for most cases.
-        const uniqueMissingSetupSecrets = Array.from(new Set(missingSetupSecrets));
+        const finalMissingSecrets = missingSetupSecrets.filter(
+            (secret): secret is UtilityInputSecret => secret !== undefined
+        );
+        const uniqueMissingSetupSecrets = Array.from(new Set(finalMissingSecrets));
         
+        if (uniqueMissingSetupSecrets.length === 0) {
+            console.warn(`${logPrefix} Prereqs failed (misconfig?), but no specific secrets to request for ${apiTool.id}.`);
+             return {
+                prerequisitesMet: false,
+                setupNeededResponse: {
+                    success: true,
+                    data: {
+                        needsSetup: true,
+                        utilityProvider: apiTool.utilityProvider,
+                        message: `Tool Misconfiguration: ${apiTool.openapiSpecification.info.title}. Check server logs.`, 
+                        title: `Configuration Error: ${apiTool.openapiSpecification.info.title}`,
+                        description: `Tool ${apiTool.id} config issue. Contact admin.`, 
+                        requiredSecretInputs: [],
+                        requiredActionConfirmations: [],
+                        oauthUrl: undefined 
+                    }
+                }
+            }; 
+        }
+
         const setupNeededData: SetupNeeded = {
             needsSetup: true,
             utilityProvider: apiTool.utilityProvider,
-            message: `Configuration is required for ${apiTool.openapiSpecification.info.title}. Some secrets were not found or available from the previous step. Please provide the necessary information.`, 
+            message: `Config needed for ${apiTool.openapiSpecification.info.title}. Some secrets missing.`, 
             title: `Reconfigure ${apiTool.openapiSpecification.info.title}`,
-            description: apiTool.openapiSpecification.info.description || `Setup for ${apiTool.id}. Please ensure all required secrets are correctly provided.`, 
+            description: apiTool.openapiSpecification.info.description || `Setup for ${apiTool.id}. Provide secrets.`, 
             requiredSecretInputs: uniqueMissingSetupSecrets, 
             requiredActionConfirmations: [],
             oauthUrl: undefined 
@@ -230,6 +230,6 @@ export const checkPrerequisites = async (
         return { prerequisitesMet: false, setupNeededResponse: { success: true, data: setupNeededData } };
     }
 
-    console.log(`${logPrefix} All prerequisites successfully met using pre-fetched resolvedSecrets for tool ${apiTool.id}.`);
+    console.log(`${logPrefix} All prereqs met using resolvedSecrets for ${apiTool.id}.`);
     return { prerequisitesMet: true, credentials: fetchedCredentials };
 }; 

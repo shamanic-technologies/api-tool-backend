@@ -1,115 +1,29 @@
 [
   {
-    "id": "chargebee_list_refunds",
-    "utilityProvider": "chargebee",
-    "openapiSpecification": {
-      "openapi": "3.0.0",
-      "info": {
-        "title": "Chargebee List Refunds",
-        "description": "Lists refund transactions from Chargebee",
-        "version": "v2"
-      },
-      "paths": {
-        "/v2/transactions": {
-          "get": {
-            "operationId": "listRefunds",
-            "summary": "List Refund Transactions",
-            "description": "Retrieves a list of refund transactions from Chargebee",
-            "parameters": [
-              {
-                "name": "limit",
-                "in": "query",
-                "description": "Number of transactions to be fetched (1-100)",
-                "required": false,
-                "schema": {
-                  "type": "integer",
-                  "default": 10,
-                  "minimum": 1,
-                  "maximum": 100
-                }
-              },
-              {
-                "name": "type[is]",
-                "in": "query",
-                "description": "Filter transactions by type",
-                "required": true,
-                "schema": {
-                  "type": "string",
-                  "enum": [
-                    "refund"
-                  ],
-                  "default": "refund"
-                }
-              }
-            ],
-            "security": [
-              {
-                "basicAuth": []
-              }
-            ],
-            "responses": {
-              "200": {
-                "description": "List of refund transactions",
-                "content": {
-                  "application/json": {
-                    "schema": {
-                      "type": "object",
-                      "properties": {
-                        "list": {
-                          "type": "array",
-                          "items": {
-                            "type": "object",
-                            "properties": {
-                              "transaction": {
-                                "type": "object"
-                              }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "components": {
-        "securitySchemes": {
-          "basicAuth": {
-            "type": "http",
-            "scheme": "basic",
-            "description": "HTTP Basic Authentication with Chargebee API key as username and empty password"
-          }
-        }
-      }
-    },
-    "securityOption": "basicAuth",
-    "securitySecrets": {
-      "x-secret-username": "api_secret_key"
-    }
-  },
-  {
-    "id": "chargebee_get_refunds",
-    "securityOption": "basicAuth",
+    "id": "stripe_list_refunds",
+    "securityOption": "stripeBasicAuth",
     "securitySecrets": {
       "x-secret-username": "api_secret_key"
     },
-    "utilityProvider": "chargebee",
+    "utilityProvider": "stripe",
     "openapiSpecification": {
+      "servers": [
+        {
+          "url": "https://api.stripe.com"
+        }
+      ],
       "info": {
-        "title": "Chargebee Get Refunds",
-        "version": "v2",
-        "description": "Gets refund transactions from Chargebee"
+        "title": "Stripe List Refunds",
+        "version": "v1",
+        "description": "Lists all refunds in your Stripe account"
       },
       "paths": {
-        "/{site_name}/transactions": {
+        "/v1/refunds": {
           "get": {
-            "summary": "List Refund Transactions",
+            "summary": "List all refunds",
             "security": [
               {
-                "basicAuth": []
+                "stripeBasicAuth": []
               }
             ],
             "responses": {
@@ -119,34 +33,61 @@
                     "schema": {
                       "type": "object",
                       "properties": {
-                        "list": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "data": {
                           "type": "array",
                           "items": {
                             "type": "object",
                             "properties": {
-                              "transaction": {
-                                "type": "object"
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "integer"
+                              },
+                              "charge": {
+                                "type": "string"
+                              },
+                              "object": {
+                                "enum": [
+                                  "refund"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
                               }
                             }
                           }
+                        },
+                        "object": {
+                          "enum": [
+                            "list"
+                          ],
+                          "type": "string"
+                        },
+                        "has_more": {
+                          "type": "boolean"
                         }
                       }
                     }
                   }
                 },
-                "description": "List of refund transactions"
+                "description": "A list of refunds"
               }
             },
             "parameters": [
-              {
-                "in": "path",
-                "name": "site_name",
-                "schema": {
-                  "type": "string"
-                },
-                "required": true,
-                "description": "Your Chargebee site name"
-              },
               {
                 "in": "query",
                 "name": "limit",
@@ -157,31 +98,470 @@
                   "minimum": 1
                 },
                 "required": false,
-                "description": "Number of transactions to be fetched (1-100)"
+                "description": "A limit on the number of objects to be returned, between 1 and 100."
               },
               {
                 "in": "query",
-                "name": "type[is]",
+                "name": "starting_after",
                 "schema": {
-                  "enum": [
-                    "refund"
-                  ],
-                  "type": "string",
-                  "default": "refund"
+                  "type": "string"
                 },
-                "required": true,
-                "description": "Filter transactions by type"
+                "required": false,
+                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
+              },
+              {
+                "in": "query",
+                "name": "ending_before",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
               }
             ],
-            "description": "Retrieves a list of refund transactions from Chargebee",
-            "operationId": "listRefunds"
+            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
+            "operationId": "stripeListRefunds"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "components": {
+        "securitySchemes": {
+          "stripeBasicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic Authentication with Stripe API key as username and empty password."
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "stripe_list_refunds_bearer",
+    "securityOption": "stripeBearerAuth",
+    "securitySecrets": {
+      "x-secret-name": "api_secret_key"
+    },
+    "utilityProvider": "stripe",
+    "openapiSpecification": {
+      "info": {
+        "title": "Stripe List Refunds",
+        "version": "v1",
+        "description": "Lists all refunds in your Stripe account"
+      },
+      "paths": {
+        "/v1/refunds": {
+          "get": {
+            "summary": "List all refunds",
+            "security": [
+              {
+                "stripeBearerAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "integer"
+                              },
+                              "charge": {
+                                "type": "string"
+                              },
+                              "object": {
+                                "enum": [
+                                  "refund"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "object": {
+                          "enum": [
+                            "list"
+                          ],
+                          "type": "string"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "A list of refunds"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                "required": false,
+                "description": "A limit on the number of objects to be returned, between 1 and 100."
+              },
+              {
+                "in": "query",
+                "name": "starting_after",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
+              },
+              {
+                "in": "query",
+                "name": "ending_before",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
+              }
+            ],
+            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
+            "operationId": "stripeListRefunds"
           }
         }
       },
       "openapi": "3.0.0",
       "servers": [
         {
-          "url": "https://{site_name}.chargebee.com/api/v2",
+          "url": "https://api.stripe.com"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "stripeBearerAuth": {
+            "type": "http",
+            "scheme": "bearer",
+            "description": "Authentication with Stripe API key as a Bearer token."
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "stripe_list_refunds_apikey",
+    "securityOption": "stripeApiKey",
+    "securitySecrets": {
+      "x-secret-name": "api_secret_key"
+    },
+    "utilityProvider": "stripe",
+    "openapiSpecification": {
+      "info": {
+        "title": "Stripe List Refunds",
+        "version": "v1",
+        "description": "Lists all refunds in your Stripe account"
+      },
+      "paths": {
+        "/v1/refunds": {
+          "get": {
+            "summary": "List all refunds",
+            "security": [
+              {
+                "stripeApiKey": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "integer"
+                              },
+                              "charge": {
+                                "type": "string"
+                              },
+                              "object": {
+                                "enum": [
+                                  "refund"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "object": {
+                          "enum": [
+                            "list"
+                          ],
+                          "type": "string"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "A list of refunds"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                "required": false,
+                "description": "A limit on the number of objects to be returned, between 1 and 100."
+              },
+              {
+                "in": "query",
+                "name": "starting_after",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
+              },
+              {
+                "in": "query",
+                "name": "ending_before",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
+              }
+            ],
+            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
+            "operationId": "stripeListRefunds"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://api.stripe.com"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "stripeApiKey": {
+            "type": "apiKey",
+            "in": "header",
+            "name": "Authorization",
+            "description": "API Key Authentication with Stripe API key prefixed with 'Bearer ' (e.g. 'Bearer sk_test_...')."
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "stripe_list_refunds_basicauth",
+    "securityOption": "stripeBasicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key",
+      "x-secret-password": "api_secret_key"
+    },
+    "utilityProvider": "stripe",
+    "openapiSpecification": {
+      "info": {
+        "title": "Stripe List Refunds",
+        "version": "v1",
+        "description": "Lists all refunds in your Stripe account"
+      },
+      "paths": {
+        "/v1/refunds": {
+          "get": {
+            "summary": "List all refunds",
+            "security": [
+              {
+                "stripeBasicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "data": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string"
+                              },
+                              "amount": {
+                                "type": "integer"
+                              },
+                              "charge": {
+                                "type": "string"
+                              },
+                              "object": {
+                                "enum": [
+                                  "refund"
+                                ],
+                                "type": "string"
+                              },
+                              "reason": {
+                                "type": "string"
+                              },
+                              "status": {
+                                "type": "string"
+                              },
+                              "created": {
+                                "type": "integer"
+                              },
+                              "currency": {
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "object": {
+                          "enum": [
+                            "list"
+                          ],
+                          "type": "string"
+                        },
+                        "has_more": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "A list of refunds"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10,
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                "required": false,
+                "description": "A limit on the number of objects to be returned, between 1 and 100."
+              },
+              {
+                "in": "query",
+                "name": "starting_after",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. starting_after is an object ID that defines your place in the list."
+              },
+              {
+                "in": "query",
+                "name": "ending_before",
+                "schema": {
+                  "type": "string"
+                },
+                "required": false,
+                "description": "A cursor for use in pagination. ending_before is an object ID that defines your place in the list."
+              }
+            ],
+            "description": "Returns a list of all refunds you've previously created. The refunds are returned in sorted order, with the most recent refunds appearing first.",
+            "operationId": "stripeListRefunds"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://api.stripe.com"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "stripeBasicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "HTTP Basic Authentication with Stripe API key as username and empty password."
+          }
+        }
+      }
+    }
+  },
+  {
+    "id": "chargebee_get_refunds",
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "openapi": "3.0.0",
+      "info": {
+        "title": "Chargebee Refunds",
+        "version": "1.0.0",
+        "description": "API to get refunds from Chargebee"
+      },
+      "servers": [
+        {
+          "url": "https://{site_name}.chargebee.com",
           "variables": {
             "site_name": {
               "default": "your-site",
@@ -190,12 +570,230 @@
           }
         }
       ],
+      "paths": {
+        "/api/v2/credit_notes": {
+          "get": {
+            "operationId": "listCreditNotes",
+            "summary": "List credit notes",
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10
+                },
+                "description": "Number of records to return"
+              },
+              {
+                "in": "query",
+                "name": "status",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "refunded"
+                  ]
+                },
+                "description": "Filter by refunded status"
+              }
+            ],
+            "security": [
+              {
+                "chargebeeBasicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Successful response",
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "credit_note": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "customer_id": {
+                                    "type": "string"
+                                  },
+                                  "subscription_id": {
+                                    "type": "string"
+                                  },
+                                  "reference_invoice_id": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "amount_refunded": {
+                                    "type": "integer"
+                                  },
+                                  "refunded_at": {
+                                    "type": "integer"
+                                  },
+                                  "created_at": {
+                                    "type": "integer"
+                                  },
+                                  "currency_code": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "components": {
         "securitySchemes": {
-          "basicAuth": {
+          "chargebeeBasicAuth": {
             "type": "http",
             "scheme": "basic",
-            "description": "HTTP Basic Authentication with Chargebee API key as username and empty password"
+            "description": "Your Chargebee API key as the username with no password"
+          }
+        }
+      }
+    },
+    "securityOption": "chargebeeBasicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    }
+  },
+  {
+    "id": "chargebee_list_refunds",
+    "securityOption": "chargebeeBasicAuth",
+    "securitySecrets": {
+      "x-secret-username": "api_secret_key"
+    },
+    "utilityProvider": "chargebee",
+    "openapiSpecification": {
+      "info": {
+        "title": "Chargebee Refunds",
+        "version": "1.0.0",
+        "description": "API to get refunds from Chargebee"
+      },
+      "paths": {
+        "/api/v2/credit_notes": {
+          "get": {
+            "summary": "List credit notes",
+            "security": [
+              {
+                "chargebeeBasicAuth": []
+              }
+            ],
+            "responses": {
+              "200": {
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "type": "object",
+                      "properties": {
+                        "list": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "credit_note": {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string"
+                                  },
+                                  "type": {
+                                    "type": "string"
+                                  },
+                                  "status": {
+                                    "type": "string"
+                                  },
+                                  "created_at": {
+                                    "type": "integer"
+                                  },
+                                  "customer_id": {
+                                    "type": "string"
+                                  },
+                                  "refunded_at": {
+                                    "type": "integer"
+                                  },
+                                  "currency_code": {
+                                    "type": "string"
+                                  },
+                                  "amount_refunded": {
+                                    "type": "integer"
+                                  },
+                                  "subscription_id": {
+                                    "type": "string"
+                                  },
+                                  "reference_invoice_id": {
+                                    "type": "string"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "description": "Successful response"
+              }
+            },
+            "parameters": [
+              {
+                "in": "query",
+                "name": "limit",
+                "schema": {
+                  "type": "integer",
+                  "default": 10
+                },
+                "description": "Number of records to return"
+              },
+              {
+                "in": "query",
+                "name": "status",
+                "schema": {
+                  "enum": [
+                    "refunded"
+                  ],
+                  "type": "string"
+                },
+                "description": "Filter by refunded status"
+              }
+            ],
+            "operationId": "listCreditNotes"
+          }
+        }
+      },
+      "openapi": "3.0.0",
+      "servers": [
+        {
+          "url": "https://agent-base-test.chargebee.com"
+        }
+      ],
+      "components": {
+        "securitySchemes": {
+          "chargebeeBasicAuth": {
+            "type": "http",
+            "scheme": "basic",
+            "description": "Your Chargebee API key as the username with no password"
           }
         }
       }

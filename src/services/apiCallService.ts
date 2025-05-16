@@ -55,6 +55,35 @@ export const makeApiCall = async (
     if (openapiSpec.servers && openapiSpec.servers.length > 0) {
         // TODO: Handle server variables if present in openapiSpec.servers[0].variables
         baseUrl = openapiSpec.servers[0].url;
+
+        // Resolve server variables in the baseUrl
+        const serverObject = openapiSpec.servers[0];
+        if (serverObject.variables) {
+            for (const variableName in serverObject.variables) {
+                if (validatedParams.hasOwnProperty(variableName)) {
+                    const value = String(validatedParams[variableName]);
+                    // OpenAPI server variable placeholders are like {variableName}
+                    const placeholder = `{${variableName}}`;
+                    baseUrl = baseUrl.replace(placeholder, encodeURIComponent(value));
+                    console.log(`${logPrefix} Replaced server variable '${placeholder}' with '${encodeURIComponent(value)}' in baseUrl.`);
+                } else {
+                    // This case should ideally be caught by validationService if server variables are made required.
+                    // However, if a variable has a default in OpenAPI spec and is not provided, we might use the default.
+                    // For now, we assume validation has ensured required server variables are present.
+                    const defaultValue = serverObject.variables[variableName].default;
+                    if (defaultValue) {
+                        const placeholder = `{${variableName}}`;
+                        baseUrl = baseUrl.replace(placeholder, encodeURIComponent(defaultValue));
+                         console.log(`${logPrefix} Replaced server variable '${placeholder}' with default value '${encodeURIComponent(defaultValue)}' in baseUrl.`);
+                    } else {
+                        // If no default and not in params, this could be an issue.
+                        console.warn(`${logPrefix} Server variable '${variableName}' not found in validatedParams and has no default value.`);
+                        // Depending on strictness, could throw an error here.
+                        // throw new Error(`${logPrefix} Server variable '${variableName}' is required but not provided and has no default.`);
+                    }
+                }
+            }
+        }
     } else {
         // Fallback or error if no server is defined - this should be validated upfront ideally
         console.warn(`${logPrefix} No servers defined in OpenAPI spec. Attempting to proceed without a base URL.`);
@@ -218,16 +247,19 @@ export const makeApiCall = async (
     if(Object.keys(queryParams).length > 0) console.log(`${logPrefix} Query Params:`, JSON.stringify(queryParams));
     if(requestBodyForCall !== undefined) console.log(`${logPrefix} Body:`, JSON.stringify(requestBodyForCall));
 
-    const axiosConfig: AxiosRequestConfig = {
+    const requestConfig: AxiosRequestConfig = {
         method: httpMethod as Method,
         url: finalUrl,
-            params: queryParams,
+        headers: {
+            'Accept': 'application/json',
+            ...(credentials as Record<string, string>),
+        },
+        params: queryParams,
         data: requestBodyForCall,
-            headers: headers,
     };
 
     try {
-        const response = await axios(axiosConfig);
+        const response = await axios(requestConfig);
         console.log(`${logPrefix} API response status: ${response.status}`);
         return response.data;
     } catch (error) {

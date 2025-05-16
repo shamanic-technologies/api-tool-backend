@@ -69,6 +69,25 @@ export const deriveSchemaFromOperation = (operation: OperationObject, openapiSpe
         return resolved as SchemaObject;
     };
 
+    // Process server variables from the first server object
+    // These are treated as required string parameters for simplicity
+    if (openapiSpec.servers && openapiSpec.servers.length > 0) {
+        const server = openapiSpec.servers[0];
+        if (server.variables) {
+            for (const variableName in server.variables) {
+                if (combinedSchema.properties && combinedSchema.required) {
+                    // Add server variable to schema properties
+                    // Defaulting to string type. OpenAPI spec allows for enum and default on server variables.
+                    // For now, we'll keep it simple; this could be enhanced.
+                    combinedSchema.properties[variableName] = { type: 'string' };
+                    // Server variables are implicitly required for the URL to be valid
+                    combinedSchema.required.push(variableName);
+                    console.log(`${logPrefix} Added server variable '${variableName}' to schema as a required string.`);
+                }
+            }
+        }
+    }
+
     // Process parameters (query, header, path)
     if (operation.parameters) {
         for (const param of operation.parameters) {
@@ -166,7 +185,7 @@ export const deriveSchemaFromOperation = (operation: OperationObject, openapiSpe
     // In such a case, an empty schema `{type: 'object'}` is appropriate.
     if (Object.keys(combinedSchema.properties || {}).length === 0 && (combinedSchema.required || []).length === 0) {
         // Allow tools with no parameters to pass validation with empty input
-        console.log(`${logPrefix} Derived an empty schema; tool likely takes no input parameters or body fields.`);
+        console.log(`${logPrefix} Derived an empty schema; tool likely takes no input parameters or body fields (excluding server variables if any).`);
     }
 
     return combinedSchema;

@@ -11,7 +11,7 @@ import { UtilityInputSecret, ApiToolStatus, UtilityProvider } from "@agent-base/
 
 import { OpenAPIObject } from "openapi3-ts/oas30";
 
-export interface UserApiTool {
+export interface UserApiToolRecord {
     user_id: string;
     api_tool_id: string;
     status: ApiToolStatus;
@@ -38,7 +38,7 @@ export interface ApiToolRecord {
  updated_at: Date;
 } 
 
-export interface ApiToolExecution {
+export interface ApiToolExecutionRecord {
     id: string;
     api_tool_id: string;
     user_id: string;

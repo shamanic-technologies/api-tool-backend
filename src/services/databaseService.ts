@@ -1,5 +1,5 @@
 import { query } from '../lib/db'; // Removed .js extension
-import { ApiToolRecord } from '../types/db.types'; // Removed .js extension
+import { ApiToolRecord, ApiToolExecutionRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution
 
 /**
  * @file Database Service
@@ -18,6 +18,48 @@ const mapRowToApiToolRecord = (row: any): ApiToolRecord => {
         security_secrets: row.security_secrets,
         is_verified: row.is_verified,
         creator_user_id: row.creator_user_id,
+        created_at: new Date(row.created_at),
+        updated_at: new Date(row.updated_at),
+    };
+};
+
+/**
+ * Helper function to map a database row to an ApiToolExecution object.
+ * Handles parsing of JSON string fields (input, output) and Date conversions.
+ * @param {any} row - The database row.
+ * @returns {ApiToolExecutionRecord} The mapped ApiToolExecution object.
+ */
+const mapRowToApiToolExecution = (row: any): ApiToolExecutionRecord => {
+    let parsedInput = row.input;
+    if (typeof row.input === 'string') {
+        try {
+            parsedInput = JSON.parse(row.input);
+        } catch (e) {
+            console.warn('Failed to parse input JSON string from DB:', e);
+            // Keep as string if parsing fails, or handle as an error
+        }
+    }
+
+    let parsedOutput = row.output;
+    if (typeof row.output === 'string') {
+        try {
+            parsedOutput = JSON.parse(row.output);
+        } catch (e) {
+            console.warn('Failed to parse output JSON string from DB:', e);
+             // Keep as string if parsing fails, or handle as an error
+        }
+    }
+
+    return {
+        id: row.id,
+        api_tool_id: row.api_tool_id,
+        user_id: row.user_id,
+        input: parsedInput,
+        output: parsedOutput,
+        status_code: row.status_code,
+        error: row.error,
+        error_details: row.error_details,
+        hint: row.hint,
         created_at: new Date(row.created_at),
         updated_at: new Date(row.updated_at),
     };
@@ -203,15 +245,81 @@ export const deleteApiTool = async (id: string): Promise<boolean> => {
 // TODO: Implement these based on requirements
 
 /**
- * Records an API tool execution.
- * @param {Omit<ApiToolExecution, 'id' | 'created_at' | 'updated_at'>} executionData
- * @returns {Promise<ApiToolExecution>}
+ * Records an API tool execution in the database.
+ * @param {Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>} executionData - The data for the execution.
+ * @returns {Promise<ApiToolExecutionRecord>} The recorded API tool execution.
+ * @throws {Error} If the database operation fails.
  */
-// export const recordApiToolExecution = async (executionData) => { /* ... */ };
+export const recordApiToolExecution = async (
+    executionData: Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>
+): Promise<ApiToolExecutionRecord> => {
+    const {
+        api_tool_id,
+        user_id,
+        input,
+        output,
+        status_code,
+        error,
+        error_details,
+        hint,
+    } = executionData;
+
+    const sql = `
+        INSERT INTO api_tool_executions (
+            api_tool_id, user_id, input, output,
+            status_code, error, error_details, hint
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *;
+    `;
+    try {
+        const params = [
+            api_tool_id,
+            user_id,
+            JSON.stringify(input), // Assuming input is an object
+            JSON.stringify(output), // Assuming output is an object
+            status_code,
+            error,
+            error_details,
+            hint,
+        ];
+        const result = await query(sql, params);
+        if (result.rows.length === 0) {
+            throw new Error('Failed to record API tool execution, no record returned.');
+        }
+        // Map row to ApiToolExecution, ensuring dates are handled correctly
+        const row = result.rows[0];
+        return mapRowToApiToolExecution(row);
+    } catch (dbError) {
+        console.error("Error recording API tool execution in database:", dbError);
+        // It's good practice to throw a more specific error or the original one,
+        // depending on how you want to handle it upstream.
+        throw new Error('Could not record API tool execution.');
+    }
+};
 
 /**
- * Retrieves executions for a specific API tool.
- * @param {string} apiToolId
- * @returns {Promise<ApiToolExecution[]>}
+ * Retrieves executions for a specific API tool, optionally filtered by user ID.
+ * @param {string} apiToolId - The UUID of the API tool.
+ * @param {string} [userId] - Optional user ID to filter executions.
+ * @returns {Promise<ApiToolExecutionRecord[]>} An array of API tool executions.
+ * @throws {Error} If the database operation fails.
  */
-// export const getApiToolExecutions = async (apiToolId) => { /* ... */ }; 
+export const getApiToolExecutions = async (apiToolId: string, userId?: string): Promise<ApiToolExecutionRecord[]> => {
+    let sql = 'SELECT * FROM api_tool_executions WHERE api_tool_id = $1';
+    const params: any[] = [apiToolId];
+
+    if (userId) {
+        sql += ' AND user_id = $2';
+        params.push(userId);
+    }
+    sql += ' ORDER BY created_at DESC;';
+
+    try {
+        const result = await query(sql, params);
+        return result.rows.map(mapRowToApiToolExecution);
+    } catch (error) {
+        console.error(`Error fetching executions for API tool ${apiToolId}:`, error);
+        throw new Error('Could not retrieve API tool executions.');
+    }
+}; 

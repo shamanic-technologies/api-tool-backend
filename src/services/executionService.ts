@@ -6,11 +6,13 @@ import {
     AgentServiceCredentials,
 } from '@agent-base/types';
 import axios from 'axios';
+import { ApiToolExecutionRecord } from '../types/db.types';
 
 // Import functions from the new services
 import { validateInputParameters } from './validationService';
 import { checkPrerequisites } from './prerequisiteService';
 import { makeApiCall } from './apiCallService';
+import { recordApiToolExecution } from './databaseService';
 
 /**
  * Handles the full execution flow for a given API tool.
@@ -30,24 +32,63 @@ export const handleExecution = async (
     resolvedSecrets: Record<string, string>
 ): Promise<ApiToolExecutionResponse> => {
     const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentServiceCredentials.clientUserId}`;
+    let executionOutcome: Partial<Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at' | 'api_tool_id' | 'user_id'>> = {};
+    let response: ApiToolExecutionResponse;
+
     try {
         // 1. Validate Input Parameters (using validationService)
         const validationResult = validateInputParameters(apiTool, params, logPrefix);
         if ('success' in validationResult && !validationResult.success) {
             console.log(`${logPrefix} Validation failed. Returning error response: ${JSON.stringify(validationResult,null,2)}`);
-            return validationResult; // Return ErrorResponse directly
+            executionOutcome = {
+                input: params,
+                output: validationResult,
+                status_code: 400, // Or a more specific status code
+                error: validationResult.error,
+                error_details: JSON.stringify(validationResult.details)
+            };
+            response = validationResult;
+            // Log and return immediately
+            await recordApiToolExecution({
+                api_tool_id: apiTool.id,
+                user_id: agentServiceCredentials.clientUserId, // Using clientUserId
+                input: executionOutcome.input,
+                output: executionOutcome.output,
+                status_code: executionOutcome.status_code!,
+                error: executionOutcome.error,
+                error_details: executionOutcome.error_details,
+            });
+            return response;
         }
-        // Type assertion is safe because we checked for error case above
         const validatedParams = (validationResult as { validatedParams: Record<string, any> }).validatedParams;
+        executionOutcome.input = validatedParams; // Log validated params
 
         // 2. Check Prerequisites (using prerequisiteService)
         const prereqResult = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
         if (!prereqResult.prerequisitesMet) {
+            executionOutcome = {
+                ...executionOutcome, // Keep previously set input
+                output: prereqResult.setupNeededResponse,
+                status_code: 424, // Failed Dependency / Setup Needed
+                error: 'Prerequisites not met.',
+                error_details: JSON.stringify(prereqResult.setupNeededResponse),
+                hint: prereqResult.setupNeededResponse?.hint
+            };
             // Non-null assertion is safe here due to prerequisitesMet check
             // Ensure setupNeededResponse is part of ApiToolExecutionResponse union
-            return prereqResult.setupNeededResponse! as ApiToolExecutionResponse;
+            response = prereqResult.setupNeededResponse! as ApiToolExecutionResponse;
+            await recordApiToolExecution({
+                api_tool_id: apiTool.id,
+                user_id: agentServiceCredentials.clientUserId,
+                input: executionOutcome.input,
+                output: executionOutcome.output,
+                status_code: executionOutcome.status_code!,
+                error: executionOutcome.error,
+                error_details: executionOutcome.error_details,
+                hint: executionOutcome.hint,
+            });
+            return response;
         }
-        // Type assertion needed as credentials might be undefined if prerequisitesMet is false
         const credentials = prereqResult.credentials!;
 
         // 3. Execute API Call (using apiCallService)
@@ -55,23 +96,25 @@ export const handleExecution = async (
         const apiResult = await makeApiCall(apiTool, validatedParams, credentials, logPrefix);
 
         // 4. Format and Return Success Response
-        // Ensure the structure matches SuccessResponse<unknown> from ApiToolExecutionResponse
         const successResponse: SuccessResponse<unknown> = {
             success: true,
             data: apiResult
         };
-        return successResponse;
+        executionOutcome = {
+            ...executionOutcome,
+            output: successResponse,
+            status_code: 200, // Assuming 200 for success
+        };
+        response = successResponse;
 
     } catch (error) {
-        // This catch block now primarily handles errors from prerequisite/API call services
-        // or unexpected orchestration errors.
         console.error(`${logPrefix} Error during execution handling:`, error);
-        // Format error into ErrorResponse
         let errorResponse: ErrorResponse;
-        // Keep Axios error check for detailed API error reporting, 
-        // though makeApiCall might abstract this away.
+        let statusCode = 500; // Default status code for errors
+
         if (axios.isAxiosError(error)) {
              const status = error.response?.status || 500;
+             statusCode = status;
              const apiErrorData = error.response?.data;
              let errorMessage = error.message;
              let errorDetails = JSON.stringify(apiErrorData || {});
@@ -92,20 +135,45 @@ export const handleExecution = async (
                 details: errorDetails
              };
         } else if (error instanceof Error) {
-            // Errors thrown by checkPrerequisites or makeApiCall directly
             errorResponse = {
                 success: false,
                 error: `Tool Execution Failed: ${error.message}`,
                 details: error.stack
             };
         } else {
-            // Unknown errors
              errorResponse = {
                 success: false,
                 error: 'An unknown error occurred during tool execution orchestration.'
              };
         }
+        
+        executionOutcome = {
+            ...executionOutcome, // Keep input if it was set
+            output: errorResponse,
+            status_code: statusCode,
+            error: errorResponse.error,
+            error_details: JSON.stringify(errorResponse.details)
+        };
+        response = errorResponse;
         console.log(`${logPrefix} Returning error response from handleExecution:`, errorResponse);
-        return errorResponse;
     }
+
+    // Common logging point for both success and caught errors
+    try {
+        await recordApiToolExecution({
+            api_tool_id: apiTool.id,
+            user_id: agentServiceCredentials.clientUserId,
+            input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set (e.g. early error)
+            output: executionOutcome.output,
+            status_code: executionOutcome.status_code!,
+            error: executionOutcome.error,
+            error_details: executionOutcome.error_details,
+            hint: executionOutcome.hint,
+        });
+    } catch (dbError) {
+        // Log db errors but don't let them overshadow the original execution response
+        console.error(`${logPrefix} Failed to record API tool execution to database:`, dbError);
+    }
+
+    return response;
 }; 

@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import * as utilityService from '../services/utilityService';
 import { 
     ApiTool, 
-    UtilityProvider
+    UtilityProvider,
+    UtilityInputSecret
 } from '@agent-base/types'; 
 import { OpenAPIObject, SecuritySchemeObject } from 'openapi3-ts/oas30'; // For validating openapiSpecification structure
 
@@ -73,14 +74,31 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
                  validationErrors.push('Missing required field: utilityProvider.');
             }
 
-            // Normalize securitySecrets values to lowercase
+            // Normalize securitySecrets values to lowercase and validate against UtilityInputSecret
             if (newApiTool.securitySecrets && typeof newApiTool.securitySecrets === 'object') {
                 const secretKeys: Array<keyof ApiTool['securitySecrets']> = ["x-secret-name", "x-secret-username", "x-secret-password"];
+                const validSecretEnumValues = Object.values(UtilityInputSecret) as string[]; // Re-added for strict validation
+
                 for (const key of secretKeys) {
-                    if (newApiTool.securitySecrets[key] && typeof newApiTool.securitySecrets[key] === 'string') {
-                        (newApiTool.securitySecrets[key] as string) = (newApiTool.securitySecrets[key] as string).toLowerCase();
-                        // After toLowerCase(), it's still a string, which is compatible with UtilitySecretType (string | enum)
-                        // No explicit cast to UtilitySecretType for the assignment target needed here, as the property itself is typed UtilitySecretType | undefined
+                    const secretValue = newApiTool.securitySecrets[key];
+                    if (secretValue && typeof secretValue === 'string') {
+                        const lowercasedSecretValue = secretValue.toLowerCase();
+                        // Assign the lowercased value back - newApiTool.securitySecrets[key] is now UtilityInputSecret
+                        // So, the cast to string for assignment is fine, TypeScript will check if lowercasedSecretValue is assignable to UtilityInputSecret.
+                        newApiTool.securitySecrets[key] = lowercasedSecretValue as UtilityInputSecret;
+
+                        // Validate if the lowercased value is a valid UtilityInputSecret enum string
+                        // This is now crucial because ApiTool.securitySecrets.* type is strictly UtilityInputSecret
+                        if (!validSecretEnumValues.includes(lowercasedSecretValue)) {
+                            validationErrors.push(
+                                `Invalid value for securitySecrets.${key}: '${secretValue}'. Must be one of [${validSecretEnumValues.join(", ")}] (e.g., 'api_secret_key', 'username', 'password'). Check UtilityInputSecret enum.`
+                            );
+                        }
+                    } else if (secretValue && typeof secretValue !== 'string') {
+                        validationErrors.push(`Value for securitySecrets.${key} must be a string if provided.`);
+                    } else if (!secretValue && key === 'x-secret-name') {
+                        // Example: if x-secret-name is mandatory for certain securityOption types, check here or later
+                        // For now, only validating if provided.
                     }
                 }
             }

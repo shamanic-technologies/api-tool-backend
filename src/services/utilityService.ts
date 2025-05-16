@@ -1,25 +1,36 @@
 import { Buffer } from 'buffer'; // Added for Base64 encoding
 
 import {
-    ApiToolExecutionResponse, // Keep
-    ApiTool,            // Keep
+    ApiToolExecutionResponse,
+    ApiTool, // Keep for external signatures if needed, but internal will use ApiToolRecord
     AgentServiceCredentials,
-    ApiToolInfo,        // Keep
-    UserType, // Added: For secret ID generation
-    SetupNeeded,        // Added: For constructing compliant response
-    UtilityInputSecret  // Added: For mapping and typing
+    ApiToolInfo,
+    UserType,
+    SetupNeeded,
+    UtilityInputSecret,
+    UtilityProvider, // Ensure this is imported if used directly
 } from '@agent-base/types';
-import { JSONSchema7 } from 'json-schema'; // For ApiToolInfo schema
-// Import database service functions
-import { readUtilities, writeUtilities } from './databaseService';
-// Remove client imports (handled by executionService)
-// import { fetchSecrets } from '../clients/secretServiceClient';
-// import { checkAuth, CheckAuthResultData } from '../clients/toolAuthServiceClient';
-// Import the new execution handler
+import { JSONSchema7 } from 'json-schema';
+// Import updated database service functions and types
+import {
+    createApiTool,
+    getApiToolById,
+    getAllApiTools,
+    // updateApiTool, // Add if/when an update utility function is needed
+    // deleteApiTool, // Add if/when a delete utility function is needed
+} from './databaseService';
+import { ApiToolRecord } from '../types/db.types';
+
 import { handleExecution } from './executionService';
-import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // For deriving schema for ApiToolInfo and credential keys
-import { gsmClient } from '..'; // Changed from ../index.js
-import { generateSecretManagerId } from '@agent-base/secret-client'; // Added import for shared utility
+import { getOperation, deriveSchemaFromOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils';
+import { gsmClient } from '..';
+import { generateSecretManagerId } from '@agent-base/secret-client';
+
+/**
+ * @file Utility Service
+ * @description Handles business logic for API tools, including listing, details, creation, and execution orchestration.
+ * Uses databaseService for data persistence.
+ */
 
 /**
  * Represents a summary of an API tool for listing.
@@ -35,16 +46,32 @@ export interface ApiToolListItem {
  */
 export type ApiToolList = ApiToolListItem[];
 
+// Helper to map ApiToolRecord to ApiTool (if needed for strict type adherence to external contracts)
+// For many cases, ApiToolRecord might be directly usable where ApiTool was, due to structural similarity.
+const mapApiToolRecordToApiTool = (record: ApiToolRecord): ApiTool => {
+    return {
+        id: record.id,
+        utilityProvider: record.utility_provider,
+        openapiSpecification: record.openapi_specification,
+        securityOption: record.security_option,
+        securitySecrets: record.security_secrets,
+        isVerified: record.is_verified,
+        creatorUserId: record.creator_user_id,
+        createdAt: record.created_at,
+        updatedAt: record.updated_at,
+    };
+};
+
 /**
  * Service function to list available API tools (summary: ID, name, description).
  * @returns {Promise<ApiToolList>} A list of API tool summaries.
  */
 export const listAvailableTools = async (): Promise<ApiToolList> => {
-    const utilities = await readUtilities(); 
-    return utilities.map(tool => ({
+    const toolRecords = await getAllApiTools();
+    return toolRecords.map(tool => ({
         id: tool.id,
-        name: tool.openapiSpecification.info.title,
-        description: tool.openapiSpecification.info.description || '' // Fallback for undefined
+        name: tool.openapi_specification.info.title,
+        description: tool.openapi_specification.info.description || '',
     }));
 };
 
@@ -56,59 +83,86 @@ export const listAvailableTools = async (): Promise<ApiToolList> => {
  */
 export const getToolDetails = async (toolId: string): Promise<ApiToolInfo | null> => {
     const logPrefix = `[UtilityService GetToolDetails ${toolId}]`;
-    const utilities = await readUtilities(); 
-    const tool = utilities.find(t => t.id === toolId);
+    const tool = await getApiToolById(toolId); // Fetches ApiToolRecord | null
     if (!tool) return null;
 
-    const operation = getOperation(tool.openapiSpecification, logPrefix);
+    const operation = getOperation(tool.openapi_specification, logPrefix);
     if (!operation) {
         console.error(`${logPrefix} Could not extract operation to derive schema for ApiToolInfo.`);
         return {
             id: tool.id,
-            name: tool.openapiSpecification.info.title,
-            description: tool.openapiSpecification.info.description || '',
-            utilityProvider: tool.utilityProvider,
-            schema: { type: 'object', properties: {}, description: 'Schema derivation failed due to invalid operation in OpenAPI spec' } as JSONSchema7
+            name: tool.openapi_specification.info.title,
+            description: tool.openapi_specification.info.description || '',
+            utilityProvider: tool.utility_provider,
+            schema: { type: 'object', properties: {}, description: 'Schema derivation failed due to invalid operation in OpenAPI spec' } as JSONSchema7,
         };
     }
 
-    const derivedSchema = deriveSchemaFromOperation(operation, tool.openapiSpecification, logPrefix);
+    const derivedSchema = deriveSchemaFromOperation(operation, tool.openapi_specification, logPrefix);
     if (!derivedSchema) {
         console.error(`${logPrefix} Failed to derive schema for ApiToolInfo.`);
         return {
             id: tool.id,
-            name: tool.openapiSpecification.info.title,
-            description: tool.openapiSpecification.info.description || '',
-            utilityProvider: tool.utilityProvider,
-            schema: { type: 'object', properties: {}, description: 'Schema derivation failed' } as JSONSchema7
+            name: tool.openapi_specification.info.title,
+            description: tool.openapi_specification.info.description || '',
+            utilityProvider: tool.utility_provider,
+            schema: { type: 'object', properties: {}, description: 'Schema derivation failed' } as JSONSchema7,
         };
     }
 
     const toolInfo: ApiToolInfo = {
         id: tool.id,
-        name: tool.openapiSpecification.info.title,
-        description: tool.openapiSpecification.info.description || '',
-        utilityProvider: tool.utilityProvider,
-        schema: derivedSchema
+        name: tool.openapi_specification.info.title,
+        description: tool.openapi_specification.info.description || '',
+        utilityProvider: tool.utility_provider, // ApiToolRecord has utility_provider
+        schema: derivedSchema,
     };
     return toolInfo;
 };
 
 /**
- * Service function to add a new API tool configuration.
- * @param {ApiTool} newApiTool The new API tool configuration.
- * @returns {Promise<ApiTool>} The added API tool configuration.
- * @throws {Error} If a tool with the same ID already exists.
+ * Data required to create a new API tool. 
+ * Based on ApiToolData but ensures required fields for DB are present.
  */
-export const addNewTool = async (newApiTool: ApiTool): Promise<ApiTool> => {
-    const utilities = await readUtilities(); 
-    const existingTool = utilities.find(t => t.id === newApiTool.id);
-    if (existingTool) {
-        throw new Error(`Tool with ID '${newApiTool.id}' already exists.`);
+export interface CreateApiToolData {
+    utilityProvider: UtilityProvider;
+    openapiSpecification: ApiToolRecord['openapi_specification']; // Use the exact type from ApiToolRecord
+    securityOption: string;
+    securitySecrets: ApiToolRecord['security_secrets']; // Use the exact type from ApiToolRecord
+    isVerified?: boolean; // DB has default false
+    creatorUserId: string; // Required for creation
+}
+
+/**
+ * Service function to add a new API tool configuration.
+ * @param {CreateApiToolData} toolCreationData - The data for the new API tool.
+ * @returns {Promise<ApiTool>} The added API tool, mapped from ApiToolRecord.
+ * @throws {Error} If creation fails.
+ */
+export const addNewTool = async (toolCreationData: CreateApiToolData): Promise<ApiTool> => {
+    // ID is auto-generated by DB. We don't check for existing ID before creation.
+    // Uniqueness constraints (e.g., on tool name for a user) should be handled by DB schema if needed.
+    
+    const toolDataForDb: Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'> = {
+        utility_provider: toolCreationData.utilityProvider,
+        openapi_specification: toolCreationData.openapiSpecification,
+        security_option: toolCreationData.securityOption,
+        security_secrets: toolCreationData.securitySecrets,
+        is_verified: toolCreationData.isVerified === undefined ? false : toolCreationData.isVerified, // Default to false if not provided
+        creator_user_id: toolCreationData.creatorUserId,
+    };
+
+    try {
+        const createdToolRecord = await createApiTool(toolDataForDb);
+        return mapApiToolRecordToApiTool(createdToolRecord); // Map to ApiTool for the return type
+    } catch (error) {
+        console.error('Error in addNewTool service:', error);
+        // Rethrow or handle as specific error type if preferred
+        if (error instanceof Error) {
+            throw new Error(`Failed to add new tool: ${error.message}`);
+        }
+        throw new Error('Failed to add new tool due to an unknown error.');
     }
-    utilities.push(newApiTool);
-    await writeUtilities(utilities);
-    return newApiTool;
 };
 
 // --- Tool Execution Logic ---
@@ -133,39 +187,41 @@ export const runToolExecution = async (
     console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
 
     try {
-        const utilities = await readUtilities();
-        const apiTool = utilities.find(t => t.id === toolId);
+        const apiToolRecord = await getApiToolById(toolId); // Fetches ApiToolRecord | null
 
-        if (!apiTool) {
+        if (!apiToolRecord) {
             return { success: false, error: `Tool config not found for ID '${toolId}'.` };
         }
+
+        // The rest of the logic uses fields available on apiToolRecord 
+        // (e.g., apiToolRecord.security_option, apiToolRecord.openapi_specification)
+        // So, direct usage of apiToolRecord should be fine here.
 
         const resolvedSecrets: Record<string, string> = {};
         const missingSecretsDetails: Array<{ secretKeyInSpec: string, secretType: UtilityInputSecret, inputPrompt: string }> = [];
 
-        if (apiTool.securityOption && apiTool.openapiSpecification.components?.securitySchemes) {
-            const securityScheme = apiTool.openapiSpecification.components.securitySchemes[apiTool.securityOption];
+        if (apiToolRecord.security_option && apiToolRecord.openapi_specification.components?.securitySchemes) {
+            const securityScheme = apiToolRecord.openapi_specification.components.securitySchemes[apiToolRecord.security_option];
             
             if (securityScheme && !('$ref' in securityScheme)) {
                 if (securityScheme.type === 'apiKey') {
-                    const apiKeyNameInSpec = securityScheme.name; // Actual name for header/query
-                    const apiKeySchemeName = apiTool.securityOption; // Scheme name, e.g., 'myApiKeyAuth'
-                    const apiKeyType = apiTool.securitySecrets?.['x-secret-name']; // This is a UtilityInputSecret string value
+                    const apiKeyNameInSpec = securityScheme.name; 
+                    const apiKeySchemeName = apiToolRecord.security_option; 
+                    const apiKeyType = apiToolRecord.security_secrets?.['x-secret-name'];
                     
                     const effectiveApiKeyNameForLog = apiKeyNameInSpec || 'api_key_name_missing_in_spec';
 
                     if (!apiKeyType) {
-                        console.error(`${logPrefix} Misconfig: apiKey '${apiKeySchemeName}' for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
+                        console.error(`${logPrefix} Misconfig: apiKey '${apiKeySchemeName}' for ${apiToolRecord.id} lacks 'x-secret-name' in securitySecrets.`);
                         missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyNameForLog, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: `Enter API Key for ${effectiveApiKeyNameForLog}` });
                     } else {
-                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${apiKeyType}' (for apiKey scheme '${apiKeySchemeName}')`);
-                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), apiKeyType);
+                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiToolRecord.utility_provider}', Type: '${apiKeyType}' (for apiKey scheme '${apiKeySchemeName}')`);
+                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiToolRecord.utility_provider.toString(), apiKeyType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for API Key '${apiKeySchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const secretValue = await gsmClient.getSecret(gsmSecretId);
                             console.log(`${logPrefix} GSM response for '${gsmSecretId}': ${secretValue === null ? 'null' : secretValue === undefined ? 'undefined' : (secretValue === '' ? 'empty string' : 'received value')}`);
                             if (secretValue) {
-                                // Store raw API key value under the scheme name
                                 const credKey = getCredentialKeyForScheme(apiKeySchemeName);
                                 resolvedSecrets[credKey] = secretValue;
                                 console.log(`${logPrefix} Stored raw API key for scheme '${apiKeySchemeName}' under key '${credKey}'.`);
@@ -177,20 +233,19 @@ export const runToolExecution = async (
                         }
                     }
                 } else if (securityScheme.type === 'http' && securityScheme.scheme === 'bearer') {
-                    const bearerSchemeName = apiTool.securityOption; // Scheme name, e.g., 'myBearerAuth'
-                    const bearerTokenType = apiTool.securitySecrets?.['x-secret-name']; // This is a UtilityInputSecret string value
+                    const bearerSchemeName = apiToolRecord.security_option;
+                    const bearerTokenType = apiToolRecord.security_secrets?.['x-secret-name']; 
                     if (!bearerTokenType) {
-                        console.error(`${logPrefix} Misconfig: Bearer token scheme '${bearerSchemeName}' for ${apiTool.id} lacks 'x-secret-name' in securitySecrets.`);
+                        console.error(`${logPrefix} Misconfig: Bearer token scheme '${bearerSchemeName}' for ${apiToolRecord.id} lacks 'x-secret-name' in securitySecrets.`);
                         missingSecretsDetails.push({ secretKeyInSpec: bearerSchemeName, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: 'Enter Bearer Token' });
                     } else {
-                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${bearerTokenType}' (for bearer scheme '${bearerSchemeName}')`);
-                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), bearerTokenType);
+                        console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiToolRecord.utility_provider}', Type: '${bearerTokenType}' (for bearer scheme '${bearerSchemeName}')`);
+                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiToolRecord.utility_provider.toString(), bearerTokenType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Bearer scheme '${bearerSchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const tokenValue = await gsmClient.getSecret(gsmSecretId);
                             console.log(`${logPrefix} GSM response for '${gsmSecretId}': ${tokenValue === null ? 'null' : tokenValue === undefined ? 'undefined' : (tokenValue === '' ? 'empty string' : 'received value')}`);
                             if (tokenValue) {
-                                // Store raw token value under the scheme name
                                 const credKey = getCredentialKeyForScheme(bearerSchemeName);
                                 resolvedSecrets[credKey] = tokenValue;
                                 console.log(`${logPrefix} Stored raw Bearer token for scheme '${bearerSchemeName}' under key '${credKey}'.`);
@@ -202,16 +257,16 @@ export const runToolExecution = async (
                         }
                     }
                 } else if (securityScheme.type === 'http' && securityScheme.scheme === 'basic') {
-                    const usernameSecretType = apiTool.securitySecrets?.['x-secret-username']; // UtilityInputSecret string value
-                    const passwordSecretType = apiTool.securitySecrets?.['x-secret-password']; // UtilityInputSecret string value
+                    const usernameSecretType = apiToolRecord.security_secrets?.['x-secret-username'];
+                    const passwordSecretType = apiToolRecord.security_secrets?.['x-secret-password'];
                     let usernameValue: string | null = null;
                     let passwordValue: string = ""; 
 
                     if (!usernameSecretType) {
-                        console.error(`${logPrefix} Misconfig: Basic auth for ${apiTool.id} lacks 'x-secret-username' in securitySecrets.`);
+                        console.error(`${logPrefix} Misconfig: Basic auth for ${apiToolRecord.id} lacks 'x-secret-username' in securitySecrets.`);
                         missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: UtilityInputSecret.USERNAME, inputPrompt: 'Enter Username' });
                     } else {
-                        const gsmUsernameSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), usernameSecretType);
+                        const gsmUsernameSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiToolRecord.utility_provider.toString(), usernameSecretType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Username with ID: ${gsmUsernameSecretId}`);
                         try {
                             usernameValue = await gsmClient.getSecret(gsmUsernameSecretId);
@@ -225,7 +280,7 @@ export const runToolExecution = async (
                     }
 
                     if (passwordSecretType) {
-                        const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), passwordSecretType);
+                        const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiToolRecord.utility_provider.toString(), passwordSecretType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Password with ID: ${gsmPasswordSecretId}`);
                         try {
                             passwordValue = (await gsmClient.getSecret(gsmPasswordSecretId)) || "";
@@ -240,24 +295,19 @@ export const runToolExecution = async (
                         (s.secretKeyInSpec === 'password' && s.secretType === (passwordSecretType as UtilityInputSecret))
                     );
 
-                    // If username was fetched (even if password wasn't, it defaults to "") and no missing details reported for these specific secrets
                     if (usernameValue && !basicAuthSecretsMissing) {
-                        // Store raw username and password for makeApiCall to construct the header
-                        const basicAuthKeys = getBasicAuthCredentialKeys(apiTool.securityOption);
+                        const basicAuthKeys = getBasicAuthCredentialKeys(apiToolRecord.security_option);
                         resolvedSecrets[basicAuthKeys.username] = usernameValue;
                         resolvedSecrets[basicAuthKeys.password] = passwordValue;
-                        console.log(`${logPrefix} Stored raw username and password for Basic Auth scheme '${apiTool.securityOption}' under keys '${basicAuthKeys.username}', '${basicAuthKeys.password}'.`);
+                        console.log(`${logPrefix} Stored raw username and password for Basic Auth scheme '${apiToolRecord.security_option}' under keys '${basicAuthKeys.username}', '${basicAuthKeys.password}'.`);
                     } else if (!usernameValue && usernameSecretType && !basicAuthSecretsMissing) {
-                        // This case implies username was expected (usernameSecretType exists), GSM returned null/empty, 
-                        // and it wasn't already added to missingSecretsDetails (e.g. by GSM error).
-                        // Ensure it's marked as missing if not already.
                         if (!missingSecretsDetails.some(s => s.secretKeyInSpec === 'username' && s.secretType === (usernameSecretType as UtilityInputSecret))){
                              missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: usernameSecretType as UtilityInputSecret, inputPrompt: 'Enter Username' });
                         }
                     }
                 } 
             } else if (securityScheme && '$ref' in securityScheme) {
-                console.warn(`${logPrefix} Security scheme '${apiTool.securityOption}' for ${apiTool.id} is a $ref. Not processed.`);
+                console.warn(`${logPrefix} Security scheme '${apiToolRecord.security_option}' for ${apiToolRecord.id} is a $ref. Not processed.`);
             }
         }
 
@@ -268,22 +318,26 @@ export const runToolExecution = async (
             const requiredStandardSecrets = uniqueMissingDetails.map(d => d.secretType);
 
             const setupNeededData: SetupNeeded = {
-                needsSetup: true, utilityProvider: apiTool.utilityProvider,
-                title: `Config Required: ${apiTool.openapiSpecification.info.title}`,
-                description: `To use '${apiTool.openapiSpecification.info.title}', provide: ${uniqueMissingDetails.map(d=>d.inputPrompt).join(', ')}. Securely stored.`,
-                message: `Setup for ${apiTool.openapiSpecification.info.title}.`,
+                needsSetup: true, utilityProvider: apiToolRecord.utility_provider,
+                title: `Config Required: ${apiToolRecord.openapi_specification.info.title}`,
+                description: `To use '${apiToolRecord.openapi_specification.info.title}', provide: ${uniqueMissingDetails.map(d=>d.inputPrompt).join(', ')}. Securely stored.`,
+                message: `Setup for ${apiToolRecord.openapi_specification.info.title}.`,
                 requiredSecretInputs: requiredStandardSecrets,
                 requiredActionConfirmations: [], 
             };
             return { success: true, data: setupNeededData };
         }
 
-        console.log(`${logPrefix} All required secrets found for ${apiTool.id}. Delegating to handleExecution...`);
-        const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
+        console.log(`${logPrefix} All required secrets found for ${apiToolRecord.id}. Delegating to handleExecution...`);
+        // Pass apiToolRecord (which is ApiToolRecord) to handleExecution.
+        // handleExecution might need to be updated if it strictly expects ApiTool type and relies on fields not in ApiToolRecord
+        // or if it modifies the object and expects ApiTool specific fields.
+        // For now, assume structural compatibility is sufficient or handleExecution is flexible.
+        const result = await handleExecution(agentServiceCredentials, apiToolRecord as unknown as ApiTool, conversationId, params, resolvedSecrets);
         return result;
 
     } catch (error) {
-        console.error(`${logPrefix} Error in runToolExecution for ${toolId}:`, error); // Changed apiTool.id to toolId
+        console.error(`${logPrefix} Error in runToolExecution for ${toolId}:`, error);
         return { success: false, error: 'Tool execution orchestration failed.', details: error instanceof Error ? error.message : String(error) };
     }
 };

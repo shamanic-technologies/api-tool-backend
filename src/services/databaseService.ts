@@ -1,6 +1,7 @@
 import { query } from '../lib/db'; // Removed .js extension
 import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution and UserApiTool
 import { ApiToolStatus } from '@agent-base/types'; // Import ApiToolStatus directly
+import { Pool, QueryResult } from 'pg'; // Example: using pg
 
 /**
  * @file Database Service
@@ -77,6 +78,17 @@ const mapRowToUserApiToolRecord = (row: any): UserApiToolRecord => {
         updated_at: new Date(row.updated_at),
     };
 };
+
+// Configure your database connection pool
+// This is an example and should be configured according to your setup
+const pool = new Pool({
+  // connectionString: process.env.DATABASE_URL, // Recommended
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  password: process.env.DB_PASSWORD,
+  port: parseInt(process.env.DB_PORT || "5432"),
+});
 
 /**
  * Creates a new API tool record in the database.
@@ -260,82 +272,65 @@ export const deleteApiTool = async (id: string): Promise<boolean> => {
 // TODO: Implement these based on requirements
 
 /**
- * Records an API tool execution in the database.
- * @param {Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>} executionData - The data for the execution.
- * @returns {Promise<ApiToolExecutionRecord>} The recorded API tool execution.
- * @throws {Error} If the database operation fails.
+ * Records a single API tool execution event into the database.
+ * @param {Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>} executionData - Data for the execution.
+ * @returns {Promise<ApiToolExecutionRecord>} The created execution record.
  */
 export const recordApiToolExecution = async (
     executionData: Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>
 ): Promise<ApiToolExecutionRecord> => {
-    const {
-        api_tool_id,
-        user_id,
-        input,
-        output,
-        status_code,
-        error,
-        error_details,
-        hint,
-    } = executionData;
-
+    const { api_tool_id, user_id, input, output, status_code, error, error_details, hint } = executionData;
     const sql = `
-        INSERT INTO api_tool_executions (
-            api_tool_id, user_id, input, output,
-            status_code, error, error_details, hint
-        )
+        INSERT INTO api_tool_executions (api_tool_id, user_id, input, output, status_code, error, error_details, hint)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *;
     `;
+    // Ensure input and output are stringified if they are objects and your DB column is JSON/TEXT
+    const safeInput = typeof input === 'object' ? JSON.stringify(input) : input;
+    const safeOutput = typeof output === 'object' ? JSON.stringify(output) : output;
+    const safeErrorDetails = typeof error_details === 'object' ? JSON.stringify(error_details) : error_details;
+
     try {
         const params = [
             api_tool_id,
             user_id,
-            JSON.stringify(input), // Assuming input is an object
-            JSON.stringify(output), // Assuming output is an object
+            safeInput,
+            safeOutput,
             status_code,
             error,
-            error_details,
+            safeErrorDetails,
             hint,
         ];
-        const result = await query(sql, params);
+        const result = await query(sql, params); // Using generic query
         if (result.rows.length === 0) {
-            throw new Error('Failed to record API tool execution, no record returned.');
+            throw new Error('Failed to record API tool execution: No rows returned.');
         }
-        // Map row to ApiToolExecution, ensuring dates are handled correctly
-        const row = result.rows[0];
-        return mapRowToApiToolExecution(row);
+        console.log(`[DB SERVICE] Recorded execution for tool ${api_tool_id} by user ${user_id}`);
+        return mapRowToApiToolExecution(result.rows[0]); // Using helper
     } catch (dbError) {
-        console.error("Error recording API tool execution in database:", dbError);
-        // It's good practice to throw a more specific error or the original one,
-        // depending on how you want to handle it upstream.
-        throw new Error('Could not record API tool execution.');
+        console.error('[DB SERVICE] Error in recordApiToolExecution:', dbError);
+        throw new Error(`Database error while recording API tool execution: ${(dbError as Error).message}`);
     }
 };
 
 /**
- * Retrieves executions for a specific API tool, optionally filtered by user ID.
- * @param {string} apiToolId - The UUID of the API tool.
- * @param {string} [userId] - Optional user ID to filter executions.
- * @returns {Promise<ApiToolExecutionRecord[]>} An array of API tool executions.
- * @throws {Error} If the database operation fails.
+ * Retrieves all API tool execution records for a specific user.
+ * @param {string} userId - The ID of the user whose executions are to be retrieved.
+ * @returns {Promise<ApiToolExecutionRecord[]>} A list of execution records.
  */
-export const getApiToolExecutions = async (apiToolId: string, userId?: string): Promise<ApiToolExecutionRecord[]> => {
-    let sql = 'SELECT * FROM api_tool_executions WHERE api_tool_id = $1';
-    const params: any[] = [apiToolId];
-
-    if (userId) {
-        sql += ' AND user_id = $2';
-        params.push(userId);
-    }
-    sql += ' ORDER BY created_at DESC;';
-
+export const getToolExecutionsByUserId = async (userId: string): Promise<ApiToolExecutionRecord[]> => {
+    const sql = `
+        SELECT * FROM api_tool_executions
+        WHERE user_id = $1
+        ORDER BY created_at DESC;
+    `;
     try {
-        const result = await query(sql, params);
-        return result.rows.map(mapRowToApiToolExecution);
-    } catch (error) {
-        console.error(`Error fetching executions for API tool ${apiToolId}:`, error);
-        throw new Error('Could not retrieve API tool executions.');
+        const result = await query(sql, [userId]); // Using generic query
+        console.log(`[DB SERVICE] Retrieved ${result.rows.length} executions for user ${userId}`);
+        return result.rows.map(mapRowToApiToolExecution); // Using helper
+    } catch (dbError) {
+        console.error('[DB SERVICE] Error in getToolExecutionsByUserId:', dbError);
+        throw new Error(`Database error while retrieving tool executions for user ${userId}: ${(dbError as Error).message}`);
     }
 };
 

@@ -7,6 +7,7 @@ import {
 } from '@agent-base/types'; 
 import { OpenAPIObject } from 'openapi3-ts/oas30'; 
 import SwaggerParser from 'swagger-parser';
+import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware'; // Import the interface
 
 /**
  * Validates the OpenAPI specification object using swagger-parser and checks custom conventions.
@@ -72,12 +73,23 @@ const validateOpenApiStructureWithLib = async (openapiSpec: OpenAPIObject): Prom
 
 /**
  * Controller to create a new API tool configuration.
- * @param {Request} req Express request object, body should conform to structure expected for CreateApiToolData.
+ * Relies on 'agentAuthMiddleware' to have populated 'req.agentServiceCredentials'.
+ * @param {Request} req Express request object, expected to be AuthenticatedRequestWithAgent.
  * @param {Response} res Express response object.
  * @param {NextFunction} next Express next middleware function.
  */
 export const createTool = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    console.log('[API Tool Service] Attempting to create tool');
+    const authenticatedReq = req as AuthenticatedRequestWithAgent;
+    const agentServiceCredentials = authenticatedReq.agentServiceCredentials;
+
+    if (!agentServiceCredentials || !agentServiceCredentials.clientUserId) {
+        console.warn('[API Tool Service] createTool called without valid agentServiceCredentials or clientUserId.');
+        res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from agent credentials.' });
+        return;
+    }
+    const creatorUserId = agentServiceCredentials.clientUserId;
+    console.log(`[API Tool Service] Attempting to create tool for user: ${creatorUserId}`);
+
     try {
         const requestBody = req.body;
         const validationErrors: string[] = [];
@@ -100,29 +112,19 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
              validationErrors.push('Missing required field: utilityProvider.');
         }
 
-        let validatedCreatorUserId: string | undefined;
-        if (requestBody.hasOwnProperty('creatorUserId')) {
-            if (typeof requestBody.creatorUserId === 'string' && requestBody.creatorUserId.trim() !== '') {
-                validatedCreatorUserId = requestBody.creatorUserId;
-            } else {
-                validationErrors.push('creatorUserId field must be a non-empty string.');
-            }
-        } else {
-            validationErrors.push('Missing required field: creatorUserId.');
-        }
+        // creatorUserId is now taken from agent credentials, remove validation for it from body
+        // if (requestBody.hasOwnProperty('creatorUserId')) { ... }
         
-        // ID should not be provided by the client
         if (requestBody.hasOwnProperty('id')) {
             validationErrors.push("Field 'id' should not be provided; it will be auto-generated.");
         }
 
-        const normalizedSecuritySecrets: any = {}; // Initialize as an empty object
+        const normalizedSecuritySecrets: any = {}; 
         if (requestBody.securitySecrets && typeof requestBody.securitySecrets === 'object') {
-            // Explicitly type secretKeys as a union of known string literals
             const secretKeys: ("x-secret-name" | "x-secret-username" | "x-secret-password")[] = ["x-secret-name", "x-secret-username", "x-secret-password"];
             const validSecretEnumValues = Object.values(UtilityInputSecret) as string[]; 
 
-            for (const key of secretKeys) { // key is now of type "x-secret-name" | "x-secret-username" | "x-secret-password"
+            for (const key of secretKeys) { 
                 const secretValue = requestBody.securitySecrets[key]; 
                 if (secretValue !== undefined && secretValue !== null) { 
                     if (typeof secretValue === 'string') {
@@ -160,7 +162,6 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
                  validationErrors.push('openapiSpecification.components.securitySchemes is missing, cannot validate securityOption.');
             }
 
-            // Validate securitySecrets content based on chosen securityOption (after basic structure check of securitySecrets object)
             if (typeof requestBody.securitySecrets === 'object' && 
                 requestBody.openapiSpecification.components?.securitySchemes && 
                 requestBody.securityOption && 
@@ -168,7 +169,6 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
                 !(requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption] as any).$ref) {
                 
                 const chosenScheme = requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption] as import('openapi3-ts/oas30').SecuritySchemeObject;
-                // Use normalizedSecuritySecrets for checking required fields
                 switch (chosenScheme.type) {
                     case 'apiKey':
                         if (!normalizedSecuritySecrets["x-secret-name"]) {
@@ -198,7 +198,7 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
         }
 
         if (validationErrors.length > 0) {
-            console.warn(`[API Tool Service] Tool creation validation failed:`, validationErrors);
+            console.warn(`[API Tool Service] Tool creation validation failed for user ${creatorUserId}:`, validationErrors);
             res.status(400).json({ 
                 success: false, 
                 error: 'Invalid tool configuration provided.',
@@ -207,17 +207,16 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             return;
         }
 
-        // Construct CreateApiToolData if all validations pass
         const toolCreationData: utilityService.CreateApiToolData = {
             utilityProvider: validatedUtilityProvider!, 
             openapiSpecification: requestBody.openapiSpecification,
             securityOption: requestBody.securityOption,
             securitySecrets: normalizedSecuritySecrets, 
             isVerified: requestBody.isVerified === undefined ? false : !!requestBody.isVerified,
-            creatorUserId: validatedCreatorUserId!, 
+            creatorUserId: creatorUserId, // Use creatorUserId from authenticated agent
         };
         
-        console.log(`[API Tool Service] Creating tool for user: ${toolCreationData.creatorUserId}`);
+        console.log(`[API Tool Service] Creating tool with validated data for user: ${creatorUserId}`);
         const createdTool = await utilityService.addNewTool(toolCreationData);
         
         res.status(201).json({ 
@@ -228,19 +227,16 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
 
     } catch (error) {
         if (error instanceof Error) {
-            // Check for specific error messages if applicable, e.g., from unique constraints from DB
            if (error.message.includes("unique constraint") || error.message.includes("violates unique constraint") || error.message.includes("already exists")) {
                 res.status(409).json({ success: false, error: "A tool with similar identifying characteristics already exists." , details: error.message});
            } else if (error.message.startsWith('Failed to add new tool: Could not create API tool.') || error.message.includes('Could not create API tool')) {
-                // This is likely a DB operational error from createApiTool in databaseService
                 res.status(500).json({ success: false, error: "Failed to save tool to database.", details: error.message });
            } else {
-                // Other errors from addNewTool service logic or unexpected issues
                 res.status(500).json({ success: false, error: `Failed to create tool: ${error.message}` });
            }
        } else {
-           console.error('Error creating tool (unknown type):', error);
-           next(error); // Fallback to generic error handler
+           console.error(`Error creating tool for user ${creatorUserId} (unknown type):`, error);
+           next(error); 
        }
     }
 }; 

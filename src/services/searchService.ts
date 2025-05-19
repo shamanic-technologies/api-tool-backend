@@ -31,6 +31,8 @@ export const getUserApiTools = async (userId: string): Promise<SearchApiToolResu
             uat.status AS "status",
             uat.created_at AS "userToolCreatedAt",
             uat.updated_at AS "userToolUpdatedAt",
+            atd.name AS "name",
+            atd.description AS "description",
             atd.utility_provider AS "utilityProvider",
             atd.security_option AS "securityOption",
             atd.is_verified AS "isVerified",
@@ -65,6 +67,8 @@ export const getUserApiTools = async (userId: string): Promise<SearchApiToolResu
         const items: SearchApiToolResultItem[] = result.rows.map(row => {
             return {
                 apiToolId: row.apiToolId,
+                name: row.name,
+                description: row.description,
                 utilityProvider: row.utilityProvider as UtilityProvider, // Ensure this matches UtilityProvider enum values
                 securityOption: row.securityOption,
                 isVerified: row.isVerified,

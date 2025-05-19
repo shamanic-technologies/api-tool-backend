@@ -19,6 +19,7 @@ const mapRowToApiToolRecord = (row: any): ApiToolRecord => {
         security_secrets: row.security_secrets,
         is_verified: row.is_verified,
         creator_user_id: row.creator_user_id,
+        embedding: row.embedding,
         created_at: new Date(row.created_at),
         updated_at: new Date(row.updated_at),
     };
@@ -84,7 +85,7 @@ const mapRowToUserApiToolRecord = (row: any): UserApiToolRecord => {
  * @throws {Error} If the database operation fails.
  */
 export const createApiTool = async (
-    toolData: Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'>
+    toolData: Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'> & { embedding?: number[] }
 ): Promise<ApiToolRecord> => {
     const {
         utility_provider,
@@ -93,24 +94,26 @@ export const createApiTool = async (
         security_secrets,
         is_verified,
         creator_user_id,
+        embedding,
     } = toolData;
 
     const sql = `
         INSERT INTO api_tools (
             utility_provider, openapi_specification, security_option,
-            security_secrets, is_verified, creator_user_id
+            security_secrets, is_verified, creator_user_id, embedding
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *;
     `;
     try {
         const params = [
             utility_provider,
-            JSON.stringify(openapi_specification), // OpenAPIObject should be stringified for JSONB
+            JSON.stringify(openapi_specification),
             security_option,
-            JSON.stringify(security_secrets),      // security_secrets should be stringified for JSONB
+            JSON.stringify(security_secrets),
             is_verified,
             creator_user_id,
+            embedding ? embedding : null,
         ];
         const result = await query(sql, params);
         if (result.rows.length === 0) {

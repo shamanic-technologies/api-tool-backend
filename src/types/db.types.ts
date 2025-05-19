@@ -34,6 +34,7 @@ export interface ApiToolRecord {
  };
  is_verified: boolean;
  creator_user_id: string;
+ embedding?: number[]; // Assuming numeric vector, adjust if needed
  created_at: Date;
  updated_at: Date;
 } 

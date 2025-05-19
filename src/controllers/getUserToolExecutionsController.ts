@@ -13,14 +13,14 @@ import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware
 export const getUserToolExecutions = async (req: Request, res: Response): Promise<void> => {
   try {
     const authenticatedReq = req as AuthenticatedRequestWithAgent;
-    const agentServiceCredentials = authenticatedReq.agentServiceCredentials;
+    const serviceCredentials = authenticatedReq.serviceCredentials;
 
-    if (!agentServiceCredentials || !agentServiceCredentials.clientUserId) {
-      console.warn('[CONTROLLER] getUserToolExecutions called without valid agentServiceCredentials or clientUserId.');
-      res.status(401).json({ error: 'Unauthorized: User ID is missing or invalid from agent credentials.' });
+    if (!serviceCredentials || !serviceCredentials.clientUserId) {
+      console.warn('[CONTROLLER] getUserToolExecutions called without valid serviceCredentials or clientUserId.');
+      res.status(401).json({ error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
       return;
     }
-    const userId = agentServiceCredentials.clientUserId;
+    const userId = serviceCredentials.clientUserId;
 
     console.log(`[CONTROLLER] Fetching tool executions for user ID: ${userId}`);
     const executions: ApiToolExecutionRecord[] = await getToolExecutionsByUserId(userId);

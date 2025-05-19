@@ -1,53 +1,70 @@
-import { Request, Response, NextFunction } from 'express';
-import { AgentServiceCredentials, ErrorResponse } from '@agent-base/types';
-import { getAuthHeadersFromAgent } from '@agent-base/api-client';
-
 /**
- * @interface AuthenticatedRequestWithAgent
- * @description Extends the Express Request interface to include agentServiceCredentials.
- * These credentials are set after successful authentication by the agentAuthMiddleware.
+ * Authentication Middleware (Adapted from webhook-tool-backend)
+ *
+ * Extracts ServiceCredentials from request headers and validates them.
+ * Attaches credentials to the request object for downstream handlers.
+ * `x-agent-id` is optional.
  */
-export interface AuthenticatedRequestWithAgent extends Request {
-  agentServiceCredentials: AgentServiceCredentials;
+import { Request, Response, NextFunction } from 'express';
+import { ServiceCredentials, ErrorResponse } from '@agent-base/types';
+
+// Define a custom request type that includes the credentials
+export interface AuthenticatedRequestWithAgent extends Request { // Renamed interface for consistency with filename
+  serviceCredentials: ServiceCredentials;
 }
 
+// Constants for header names
+const HEADER_PLATFORM_API_KEY = 'x-platform-api-key';
+const HEADER_PLATFORM_USER_ID = 'x-platform-user-id';
+const HEADER_CLIENT_USER_ID = 'x-client-user-id'; // Now required
+const HEADER_AGENT_ID = 'x-agent-id'; // Optional
+
 /**
- * @function agentAuthMiddleware
- * @description Middleware to authenticate requests based on agent service credentials provided in headers.
- * It uses 'getAuthHeadersFromAgent' to extract and validate these credentials.
- * If authentication is successful, credentials are attached to 'req.agentServiceCredentials'.
- * Otherwise, a 401 Unauthorized response is sent.
- * @param {Request} req - Express request object.
- * @param {Response} res - Express response object.
- * @param {NextFunction} next - Express next middleware function.
+ * Express middleware to extract and validate ServiceCredentials.
+ *
+ * Renamed from authMiddleware to agentAuthMiddleware for consistency with filename.
+ *
+ * Expects headers:
+ * - `x-platform-api-key`: Required
+ * - `x-platform-user-id`: Required
+ * - `x-client-user-id`: Required
+ * - `x-agent-id`: Optional
+ *
+ * If required headers are missing or invalid, sends a 401 Unauthorized response.
+ * Otherwise, attaches credentials to `req.serviceCredentials` and calls `next()`.
  */
 export const agentAuthMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  const authHeaders = getAuthHeadersFromAgent(req);
+  const platformApiKey = req.headers[HEADER_PLATFORM_API_KEY] as string;
+  const platformUserId = req.headers[HEADER_PLATFORM_USER_ID] as string;
+  const clientUserId = req.headers[HEADER_CLIENT_USER_ID] as string;
+  const agentId = req.headers[HEADER_AGENT_ID] as string | undefined;
 
-  if (!authHeaders.success) {
-    const errorPayload = authHeaders.error;
-    let errorMessage = 'Authentication headers are missing or invalid.';
-    let errorDetails: any = undefined;
+  // Basic validation: Check for required headers
+  if (!platformApiKey || !platformUserId || !clientUserId) {
+    let missingHeaders = [];
+    if (!platformApiKey) missingHeaders.push(HEADER_PLATFORM_API_KEY);
+    if (!platformUserId) missingHeaders.push(HEADER_PLATFORM_USER_ID);
+    if (!clientUserId) missingHeaders.push(HEADER_CLIENT_USER_ID);
 
-    // Normalize error message and details from the authHeaders.error payload
-    if (errorPayload) {
-      if (typeof errorPayload === 'string') {
-        errorMessage = errorPayload;
-      } else if (typeof errorPayload === 'object' && errorPayload !== null) {
-        errorMessage = (errorPayload as { message?: string }).message || JSON.stringify(errorPayload);
-        errorDetails = (errorPayload as { details?: any }).details;
-      }
-    }
-
-    console.warn(`[Agent Auth Middleware] Authentication failed: ${errorMessage}`);
-    const errorRes: ErrorResponse = { success: false, error: errorMessage, details: errorDetails };
-    res.status(401).json(errorRes);
+    console.warn(`[Agent Auth Middleware] Authentication failed: Missing required headers: ${missingHeaders.join(', ')}`);
+    const errorResponse: ErrorResponse = {
+      success: false,
+      error: 'Unauthorized',
+      details: `Missing required headers: ${missingHeaders.join(', ')}`,
+    };
+    res.status(401).json(errorResponse);
     return;
   }
 
-  // Attach credentials to the request object for use in subsequent handlers
-  (req as AuthenticatedRequestWithAgent).agentServiceCredentials = authHeaders.data;
-  
-  console.log(`[Agent Auth Middleware] Authenticated successfully for clientUserId: ${authHeaders.data.clientUserId}`);
+  // Attach credentials to the request object
+  (req as AuthenticatedRequestWithAgent).serviceCredentials = {
+    platformApiKey,
+    platformUserId,
+    clientUserId,
+    agentId,      // Will be undefined if header not present
+  };
+
+  console.log(`[Agent Auth Middleware] Authenticated successfully for platformUserId: ${platformUserId}, clientUserId: ${clientUserId}` + (agentId ? `, agentId: ${agentId}` : ' (no agentId)'));
+  // Proceed to the next middleware or route handler
   next();
 }; 

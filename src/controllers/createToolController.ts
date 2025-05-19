@@ -73,21 +73,21 @@ const validateOpenApiStructureWithLib = async (openapiSpec: OpenAPIObject): Prom
 
 /**
  * Controller to create a new API tool configuration.
- * Relies on 'agentAuthMiddleware' to have populated 'req.agentServiceCredentials'.
+ * Relies on 'agentAuthMiddleware' to have populated 'req.serviceCredentials'.
  * @param {Request} req Express request object, expected to be AuthenticatedRequestWithAgent.
  * @param {Response} res Express response object.
  * @param {NextFunction} next Express next middleware function.
  */
 export const createTool = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const authenticatedReq = req as AuthenticatedRequestWithAgent;
-    const agentServiceCredentials = authenticatedReq.agentServiceCredentials;
+    const serviceCredentials = authenticatedReq.serviceCredentials;
 
-    if (!agentServiceCredentials || !agentServiceCredentials.clientUserId) {
-        console.warn('[API Tool Service] createTool called without valid agentServiceCredentials or clientUserId.');
-        res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from agent credentials.' });
+    if (!serviceCredentials || !serviceCredentials.clientUserId) {
+        console.warn('[API Tool Service] createTool called without valid serviceCredentials or clientUserId.');
+        res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
         return;
     }
-    const creatorUserId = agentServiceCredentials.clientUserId;
+    const creatorUserId = serviceCredentials.clientUserId;
     console.log(`[API Tool Service] Attempting to create tool for user: ${creatorUserId}`);
 
     try {
@@ -112,7 +112,7 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
              validationErrors.push('Missing required field: utilityProvider.');
         }
 
-        // creatorUserId is now taken from agent credentials, remove validation for it from body
+        // creatorUserId is now taken from service credentials, remove validation for it from body
         // if (requestBody.hasOwnProperty('creatorUserId')) { ... }
         
         if (requestBody.hasOwnProperty('id')) {

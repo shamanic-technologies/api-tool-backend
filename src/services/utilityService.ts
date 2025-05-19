@@ -423,7 +423,8 @@ export const runToolExecution = async (
         }
 
         console.log(`${logPrefix} All required secrets found for ${apiToolRecord.id}. Delegating to handleExecution...`);
-        const result = await handleExecution(agentServiceCredentials, apiToolRecord as unknown as ApiTool, conversationId, params, resolvedSecrets);
+        const apiToolForExecution = mapApiToolRecordToApiTool(apiToolRecord);
+        const result = await handleExecution(agentServiceCredentials, apiToolForExecution, conversationId, params, resolvedSecrets);
 
         // After successful execution (not an error, not a setup needed response)
         if (result.success === true) {

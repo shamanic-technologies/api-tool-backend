@@ -86,8 +86,8 @@ export const listAvailableTools = async (): Promise<UtilitiesList> => {
     const toolRecords = await getAllApiTools();
     return toolRecords.map(tool => ({
         id: tool.id,
-        name: tool.openapiSpecification.info.title,
-        description: tool.openapiSpecification.info.description || '',
+        name: tool.name,
+        description: tool.description,
     }));
 };
 
@@ -99,16 +99,20 @@ export const listAvailableTools = async (): Promise<UtilitiesList> => {
  */
 export const getToolDetails = async (toolId: string): Promise<ApiToolInfo | null> => {
     const logPrefix = `[UtilityService GetToolDetails ${toolId}]`;
-    const tool = await getApiToolById(toolId); // Fetches ApiToolRecord | null
+    const tool = await getApiToolById(toolId); // Fetches ApiTool | null
     if (!tool) return null;
+
+    // Use direct name and description from the tool object
+    const toolName = tool.name;
+    const toolDescription = tool.description;
 
     const operation = getOperation(tool.openapiSpecification, logPrefix);
     if (!operation) {
         console.error(`${logPrefix} Could not extract operation to derive schema for ApiToolInfo.`);
         return {
             id: tool.id,
-            name: tool.openapiSpecification.info.title,
-            description: tool.openapiSpecification.info.description || '',
+            name: toolName,
+            description: toolDescription,
             utilityProvider: tool.utilityProvider,
             schema: { type: 'object', properties: {}, description: 'Schema derivation failed due to invalid operation in OpenAPI spec' } as JSONSchema7,
         };
@@ -119,8 +123,8 @@ export const getToolDetails = async (toolId: string): Promise<ApiToolInfo | null
         console.error(`${logPrefix} Failed to derive schema for ApiToolInfo.`);
         return {
             id: tool.id,
-            name: tool.openapiSpecification.info.title,
-            description: tool.openapiSpecification.info.description || '',
+            name: toolName,
+            description: toolDescription,
             utilityProvider: tool.utilityProvider,
             schema: { type: 'object', properties: {}, description: 'Schema derivation failed' } as JSONSchema7,
         };
@@ -128,9 +132,9 @@ export const getToolDetails = async (toolId: string): Promise<ApiToolInfo | null
 
     const toolInfo: ApiToolInfo = {
         id: tool.id,
-        name: tool.openapiSpecification.info.title,
-        description: tool.openapiSpecification.info.description || '',
-        utilityProvider: tool.utilityProvider, // ApiToolRecord has utility_provider
+        name: toolName,
+        description: toolDescription,
+        utilityProvider: tool.utilityProvider,
         schema: derivedSchema,
     };
     return toolInfo;
@@ -151,6 +155,8 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
 
     // Prepare data for the database, now including the optional embedding
     const toolDataForDb: ApiToolData = {
+        name: toolCreationData.name,
+        description: toolCreationData.description,
         utilityProvider: toolCreationData.utilityProvider,
         openapiSpecification: toolCreationData.openapiSpecification,
         securityOption: toolCreationData.securityOption,

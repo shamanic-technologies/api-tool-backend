@@ -102,6 +102,28 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
         }
 
         // --- Field Extraction and Basic Validation for CreateApiToolData fields ---
+        let validatedName: string | undefined;
+        if (requestBody.hasOwnProperty('name')) {
+            if (typeof requestBody.name === 'string' && requestBody.name.trim() !== '') {
+                validatedName = requestBody.name;
+            } else {
+                validationErrors.push('name field must be a non-empty string.');
+            }
+        } else {
+            validationErrors.push('Missing required field: name.');
+        }
+
+        let validatedDescription: string | undefined;
+        if (requestBody.hasOwnProperty('description')) {
+            if (typeof requestBody.description === 'string' && requestBody.description.trim() !== '') {
+                validatedDescription = requestBody.description;
+            } else {
+                validationErrors.push('description field must be a non-empty string.');
+            }
+        } else {
+            validationErrors.push('Missing required field: description.');
+        }
+
         let validatedUtilityProvider: UtilityProvider | undefined;
         if (requestBody.hasOwnProperty('utilityProvider')) {
             if (typeof requestBody.utilityProvider === 'string' && requestBody.utilityProvider.trim() !== '') {
@@ -209,7 +231,9 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
         }
 
         const toolCreationData: CreateApiToolRequest = {
-            utilityProvider: validatedUtilityProvider!, 
+            name: validatedName!,
+            description: validatedDescription!,
+            utilityProvider: validatedUtilityProvider!,
             openapiSpecification: requestBody.openapiSpecification,
             securityOption: requestBody.securityOption,
             securitySecrets: normalizedSecuritySecrets, 

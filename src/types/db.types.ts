@@ -24,6 +24,8 @@ export interface UserApiToolRecord {
  */
 export interface ApiToolRecord {
   id: string; // UUID, primary key
+  name: string;
+  description: string;
   utility_provider: UtilityProvider;
   openapi_specification: OpenAPIObject;
   security_option: string;

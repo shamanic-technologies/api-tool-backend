@@ -14,6 +14,8 @@ import { Pool, QueryResult } from 'pg'; // Example: using pg
 const mapRowToApiTool = (row: any): ApiTool => {
     return {
         id: row.id,
+        name: row.name,
+        description: row.description,
         utilityProvider: row.utility_provider,
         openapiSpecification: row.openapi_specification,
         securityOption: row.security_option,
@@ -100,6 +102,8 @@ export const createApiTool = async (
     toolData: ApiToolData
 ): Promise<ApiTool> => {
     const {
+        name,
+        description,
         utilityProvider,
         openapiSpecification,
         securityOption,
@@ -111,14 +115,16 @@ export const createApiTool = async (
 
     const sql = `
         INSERT INTO api_tools (
-            utility_provider, openapi_specification, security_option,
+            name, description, utility_provider, openapi_specification, security_option,
             security_secrets, is_verified, creator_user_id, embedding
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
     `;
     try {
         const params = [
+            name,
+            description,
             utilityProvider,
             JSON.stringify(openapiSpecification),
             securityOption,
@@ -185,17 +191,14 @@ export const updateApiTool = async (
     id: string,
     updates: Partial<ApiToolData>
 ): Promise<ApiTool | null> => {
-    const updateFields = Object.keys(updates) as Array<keyof typeof updates>;
+    const updateFields = Object.keys(updates) as Array<keyof Partial<ApiToolData>>;
     if (updateFields.length === 0) {
         console.warn(`Update called for API tool ${id} with no update fields.`);
         return getApiToolById(id); 
     }
 
     const setClauses = updateFields.map((field, index) => {
-        // Ensure JSON fields are stringified if they are part of the update
-        // Also, ensure column names are double-quoted if they might conflict with SQL keywords or contain special characters
-        // (though our current names are safe, this is good practice).
-        const columnName = field; // In our case, field names match column names directly from ApiToolRecord keys
+        const columnName = field;
         if (field === 'openapiSpecification' || field === 'securitySecrets') {
             return `"${columnName}" = $${index + 1}::jsonb`;
         }

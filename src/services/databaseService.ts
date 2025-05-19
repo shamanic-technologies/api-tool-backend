@@ -1,6 +1,6 @@
 import { query } from '../lib/db'; // Removed .js extension
 import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution and UserApiTool
-import { ApiToolStatus } from '@agent-base/types'; // Import ApiToolStatus directly
+import { ApiTool, ApiToolData, ApiToolExecution, ApiToolExecutionData, ApiToolStatus, UserApiTool } from '@agent-base/types'; // Import ApiToolStatus directly
 import { Pool, QueryResult } from 'pg'; // Example: using pg
 
 /**
@@ -11,18 +11,18 @@ import { Pool, QueryResult } from 'pg'; // Example: using pg
 
 // Helper function to map database row to ApiToolRecord (handles potential snake_case to camelCase if any)
 // For now, field names in db.types.ts mostly match, but this is good practice.
-const mapRowToApiToolRecord = (row: any): ApiToolRecord => {
+const mapRowToApiTool = (row: any): ApiTool => {
     return {
         id: row.id,
-        utility_provider: row.utility_provider,
-        openapi_specification: row.openapi_specification,
-        security_option: row.security_option,
-        security_secrets: row.security_secrets,
-        is_verified: row.is_verified,
-        creator_user_id: row.creator_user_id,
+        utilityProvider: row.utility_provider,
+        openapiSpecification: row.openapi_specification,
+        securityOption: row.security_option,
+        securitySecrets: row.security_secrets,
+        isVerified: row.is_verified,
+        creatorUserId: row.creator_user_id,
         embedding: row.embedding,
-        created_at: new Date(row.created_at),
-        updated_at: new Date(row.updated_at),
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
     };
 };
 
@@ -32,7 +32,7 @@ const mapRowToApiToolRecord = (row: any): ApiToolRecord => {
  * @param {any} row - The database row.
  * @returns {ApiToolExecutionRecord} The mapped ApiToolExecution object.
  */
-const mapRowToApiToolExecution = (row: any): ApiToolExecutionRecord => {
+const mapRowToApiToolExecution = (row: any): ApiToolExecution => {
     let parsedInput = row.input;
     if (typeof row.input === 'string') {
         try {
@@ -55,27 +55,27 @@ const mapRowToApiToolExecution = (row: any): ApiToolExecutionRecord => {
 
     return {
         id: row.id,
-        api_tool_id: row.api_tool_id,
-        user_id: row.user_id,
+        apiToolId: row.api_tool_id,
+        userId: row.user_id,
         input: parsedInput,
         output: parsedOutput,
-        status_code: row.status_code,
+        statusCode: row.status_code,
         error: row.error,
-        error_details: row.error_details,
+        errorDetails: row.error_details,
         hint: row.hint,
-        created_at: new Date(row.created_at),
-        updated_at: new Date(row.updated_at),
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
     };
 };
 
 // Corrected helper function to map database row to UserApiToolRecord
-const mapRowToUserApiToolRecord = (row: any): UserApiToolRecord => {
+const mapRowToUserApiTool = (row: any): UserApiTool => {
     return {
-        user_id: row.user_id,
-        api_tool_id: row.api_tool_id,
+        userId: row.user_id,
+        apiToolId: row.api_tool_id,
         status: row.status as ApiToolStatus, // Ensure this matches the enum values, e.g., 'unset', 'active'
-        created_at: new Date(row.created_at),
-        updated_at: new Date(row.updated_at),
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at),
     };
 };
 
@@ -97,15 +97,15 @@ const pool = new Pool({
  * @throws {Error} If the database operation fails.
  */
 export const createApiTool = async (
-    toolData: Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'> & { embedding?: number[] }
-): Promise<ApiToolRecord> => {
+    toolData: ApiToolData
+): Promise<ApiTool> => {
     const {
-        utility_provider,
-        openapi_specification,
-        security_option,
-        security_secrets,
-        is_verified,
-        creator_user_id,
+        utilityProvider,
+        openapiSpecification,
+        securityOption,
+        securitySecrets,
+        isVerified,
+        creatorUserId,
         embedding,
     } = toolData;
 
@@ -119,19 +119,19 @@ export const createApiTool = async (
     `;
     try {
         const params = [
-            utility_provider,
-            JSON.stringify(openapi_specification),
-            security_option,
-            JSON.stringify(security_secrets),
-            is_verified,
-            creator_user_id,
+            utilityProvider,
+            JSON.stringify(openapiSpecification),
+            securityOption,
+            JSON.stringify(securitySecrets),
+            isVerified,
+            creatorUserId,
             embedding ? embedding : null,
         ];
         const result = await query(sql, params);
         if (result.rows.length === 0) {
             throw new Error('Failed to create API tool, no record returned.');
         }
-        return mapRowToApiToolRecord(result.rows[0]);
+        return mapRowToApiTool(result.rows[0]);
     } catch (error) {
         console.error("Error creating API tool in database:", error);
         throw new Error('Could not create API tool.');
@@ -144,14 +144,14 @@ export const createApiTool = async (
  * @returns {Promise<ApiToolRecord | null>} The API tool record or null if not found.
  * @throws {Error} If the database operation fails.
  */
-export const getApiToolById = async (id: string): Promise<ApiToolRecord | null> => {
+export const getApiToolById = async (id: string): Promise<ApiTool | null> => {
     const sql = 'SELECT * FROM api_tools WHERE id = $1;';
     try {
         const result = await query(sql, [id]);
         if (result.rows.length === 0) {
             return null;
         }
-        return mapRowToApiToolRecord(result.rows[0]);
+        return mapRowToApiTool(result.rows[0]);
     } catch (error) {
         console.error(`Error fetching API tool with ID ${id}:`, error);
         throw new Error('Could not retrieve API tool.');
@@ -163,11 +163,11 @@ export const getApiToolById = async (id: string): Promise<ApiToolRecord | null> 
  * @returns {Promise<ApiToolRecord[]>} An array of API tool records.
  * @throws {Error} If the database operation fails.
  */
-export const getAllApiTools = async (): Promise<ApiToolRecord[]> => {
+export const getAllApiTools = async (): Promise<ApiTool[]> => {
     const sql = 'SELECT * FROM api_tools ORDER BY created_at DESC;';
     try {
         const result = await query(sql);
-        return result.rows.map(mapRowToApiToolRecord);
+        return result.rows.map(mapRowToApiTool);
     } catch (error) {
         console.error("Error fetching all API tools:", error);
         throw new Error('Could not retrieve API tools.');
@@ -183,8 +183,8 @@ export const getAllApiTools = async (): Promise<ApiToolRecord[]> => {
  */
 export const updateApiTool = async (
     id: string,
-    updates: Partial<Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'>>
-): Promise<ApiToolRecord | null> => {
+    updates: Partial<ApiToolData>
+): Promise<ApiTool | null> => {
     const updateFields = Object.keys(updates) as Array<keyof typeof updates>;
     if (updateFields.length === 0) {
         console.warn(`Update called for API tool ${id} with no update fields.`);
@@ -196,7 +196,7 @@ export const updateApiTool = async (
         // Also, ensure column names are double-quoted if they might conflict with SQL keywords or contain special characters
         // (though our current names are safe, this is good practice).
         const columnName = field; // In our case, field names match column names directly from ApiToolRecord keys
-        if (field === 'openapi_specification' || field === 'security_secrets') {
+        if (field === 'openapiSpecification' || field === 'securitySecrets') {
             return `"${columnName}" = $${index + 1}::jsonb`;
         }
         return `"${columnName}" = $${index + 1}`;
@@ -204,7 +204,7 @@ export const updateApiTool = async (
 
     const params = updateFields.map(field => {
         const value = updates[field];
-        if (field === 'openapi_specification' || field === 'security_secrets') {
+        if (field === 'openapiSpecification' || field === 'securitySecrets') {
             return JSON.stringify(value);
         }
         return value;
@@ -224,7 +224,7 @@ export const updateApiTool = async (
         if (result.rows.length === 0) {
             return null; 
         }
-        return mapRowToApiToolRecord(result.rows[0]);
+        return mapRowToApiTool(result.rows[0]);
     } catch (error) {
         console.error(`Error updating API tool with ID ${id}:`, error);
         throw new Error('Could not update API tool.');
@@ -277,9 +277,9 @@ export const deleteApiTool = async (id: string): Promise<boolean> => {
  * @returns {Promise<ApiToolExecutionRecord>} The created execution record.
  */
 export const recordApiToolExecution = async (
-    executionData: Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>
-): Promise<ApiToolExecutionRecord> => {
-    const { api_tool_id, user_id, input, output, status_code, error, error_details, hint } = executionData;
+    executionData: ApiToolExecutionData
+): Promise<ApiToolExecution> => {
+    const { apiToolId, userId, input, output, statusCode, error, errorDetails, hint } = executionData;
     const sql = `
         INSERT INTO api_tool_executions (api_tool_id, user_id, input, output, status_code, error, error_details, hint)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -288,15 +288,15 @@ export const recordApiToolExecution = async (
     // Ensure input and output are stringified if they are objects and your DB column is JSON/TEXT
     const safeInput = typeof input === 'object' ? JSON.stringify(input) : input;
     const safeOutput = typeof output === 'object' ? JSON.stringify(output) : output;
-    const safeErrorDetails = typeof error_details === 'object' ? JSON.stringify(error_details) : error_details;
+    const safeErrorDetails = typeof errorDetails === 'object' ? JSON.stringify(errorDetails) : errorDetails;
 
     try {
         const params = [
-            api_tool_id,
-            user_id,
+            apiToolId,
+            userId,
             safeInput,
             safeOutput,
-            status_code,
+            statusCode,
             error,
             safeErrorDetails,
             hint,
@@ -305,7 +305,7 @@ export const recordApiToolExecution = async (
         if (result.rows.length === 0) {
             throw new Error('Failed to record API tool execution: No rows returned.');
         }
-        console.log(`[DB SERVICE] Recorded execution for tool ${api_tool_id} by user ${user_id}`);
+        console.log(`[DB SERVICE] Recorded execution for tool ${apiToolId} by user ${userId}`);
         return mapRowToApiToolExecution(result.rows[0]); // Using helper
     } catch (dbError) {
         console.error('[DB SERVICE] Error in recordApiToolExecution:', dbError);
@@ -318,7 +318,7 @@ export const recordApiToolExecution = async (
  * @param {string} userId - The ID of the user whose executions are to be retrieved.
  * @returns {Promise<ApiToolExecutionRecord[]>} A list of execution records.
  */
-export const getToolExecutionsByUserId = async (userId: string): Promise<ApiToolExecutionRecord[]> => {
+export const getToolExecutionsByUserId = async (userId: string): Promise<ApiToolExecution[]> => {
     const sql = `
         SELECT * FROM api_tool_executions
         WHERE user_id = $1
@@ -344,12 +344,12 @@ export const getToolExecutionsByUserId = async (userId: string): Promise<ApiTool
  * @returns {Promise<UserApiToolRecord>} The found or created UserApiToolRecord.
  * @throws {Error} If the database operation fails.
  */
-export const getOrCreateUserApiTool = async (userId: string, apiToolId: string): Promise<UserApiToolRecord> => {
+export const getOrCreateUserApiTool = async (userId: string, apiToolId: string): Promise<UserApiTool> => {
     const findSql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND api_tool_id = $2;';
     try {
         const findResult = await query(findSql, [userId, apiToolId]);
         if (findResult.rows.length > 0) {
-            return mapRowToUserApiToolRecord(findResult.rows[0]);
+            return mapRowToUserApiTool(findResult.rows[0]);
         } else {
             // Not found, create a new one. 'created_at' and 'updated_at' will use DB defaults.
             const insertSql = `
@@ -362,7 +362,7 @@ export const getOrCreateUserApiTool = async (userId: string, apiToolId: string):
             if (insertResult.rows.length === 0) {
                 throw new Error('Failed to create UserApiToolRecord, no record returned.');
             }
-            return mapRowToUserApiToolRecord(insertResult.rows[0]);
+            return mapRowToUserApiTool(insertResult.rows[0]);
         }
     } catch (error) {
         console.error(`Error in getOrCreateUserApiTool for user ${userId}, tool ${apiToolId}:`, error);
@@ -378,7 +378,7 @@ export const getOrCreateUserApiTool = async (userId: string, apiToolId: string):
  * @returns {Promise<UserApiToolRecord | null>} The updated UserApiToolRecord, or null if not found.
  * @throws {Error} If the database operation fails.
  */
-export const updateUserApiToolStatus = async (userId: string, apiToolId: string, status: ApiToolStatus): Promise<UserApiToolRecord | null> => {
+export const updateUserApiToolStatus = async (userId: string, apiToolId: string, status: ApiToolStatus): Promise<UserApiTool | null> => {
     const sql = `
         UPDATE user_api_tools
         SET status = $1, updated_at = current_timestamp
@@ -393,7 +393,7 @@ export const updateUserApiToolStatus = async (userId: string, apiToolId: string,
             console.warn(`No UserApiToolRecord found for user ${userId} and tool ${apiToolId} to update status.`);
             return null;
         }
-        return mapRowToUserApiToolRecord(result.rows[0]);
+        return mapRowToUserApiTool(result.rows[0]);
     } catch (error) {
         console.error(`Error updating UserApiToolRecord status for user ${userId}, tool ${apiToolId}:`, error);
         throw new Error('Could not update UserApiToolRecord status.');
@@ -406,11 +406,11 @@ export const updateUserApiToolStatus = async (userId: string, apiToolId: string,
  * @returns {Promise<UserApiToolRecord[]>} An array of UserApiToolRecord.
  * @throws {Error} If the database operation fails.
  */
-export const getUserApiToolsByUserId = async (userId: string): Promise<UserApiToolRecord[]> => {
+export const getUserApiToolsByUserId = async (userId: string): Promise<UserApiTool[]> => {
     const sql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND status != $2 ORDER BY created_at DESC;';
     try {
         const result = await query(sql, [userId, ApiToolStatus.DELETED]);
-        return result.rows.map(mapRowToUserApiToolRecord);
+        return result.rows.map(mapRowToUserApiTool);
     } catch (error) {
         console.error(`Error fetching user API tools for user ID ${userId}:`, error);
         throw new Error('Could not retrieve user API tools.');

@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import * as utilityService from '../services/utilityService';
-import { UserApiToolRecord } from '../types/db.types';
+import * as executionStatsService from '../services/searchService';
 import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware';
+import { SearchApiToolResult } from '@agent-base/types';
 
 /**
  * Controller to get all API tools for a specific user.
+ * The result is a SearchApiToolResult object containing items and total count.
  * Relies on 'agentAuthMiddleware' to have populated 'req.agentServiceCredentials'.
  * @param {Request} req Express request object, expected to be AuthenticatedRequestWithAgent.
  * @param {Response} res Express response object.
@@ -16,18 +17,21 @@ export const getUserApiTools = async (req: Request, res: Response, next: NextFun
         const serviceCredentials = authenticatedReq.serviceCredentials;
 
         if (!serviceCredentials || !serviceCredentials.clientUserId) {
-            console.warn('[API Tool Service] getUserApiTools called without valid serviceCredentials or clientUserId.');
+            console.warn('[API Tool Service] getUserApiTools controller called without valid serviceCredentials or clientUserId.');
             res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
             return;
         }
-        const userId = serviceCredentials.clientUserId;
+        const requestingUserId = serviceCredentials.clientUserId;
 
-        console.log(`[API Tool Service] Getting API tools for user ID: ${userId}`);
-        const userApiTools: UserApiToolRecord[] = await utilityService.getUserApiTools(userId);
-        res.status(200).json({ success: true, data: userApiTools });
+        console.log(`[API Tool Service] Controller: Getting API tools for user ID: ${requestingUserId}`);
+        
+        const searchApiToolResult: SearchApiToolResult = await executionStatsService.getUserApiTools(requestingUserId);
+        
+        res.status(200).json({ success: true, data: searchApiToolResult });
 
     } catch (error) {
-        console.error(`[API Tool Service] Error getting API tools for user ${ (req as AuthenticatedRequestWithAgent).serviceCredentials?.clientUserId || 'unknown'}:`, error);
+        const clientUserId = (req as AuthenticatedRequestWithAgent).serviceCredentials?.clientUserId || 'unknown';
+        console.error(`[API Tool Service] Controller: Error getting API tools for user ${clientUserId}:`, error);
         next(error); 
     }
 }; 

@@ -3,6 +3,7 @@ import * as utilityService from '../services/utilityService';
 import { 
     UtilityProvider,
     UtilityInputSecret,
+    CreateApiToolRequest,
     // ApiTool, // No longer directly used as input type for addNewTool
 } from '@agent-base/types'; 
 import { OpenAPIObject } from 'openapi3-ts/oas30'; 
@@ -207,7 +208,7 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             return;
         }
 
-        const toolCreationData: utilityService.CreateApiToolData = {
+        const toolCreationData: CreateApiToolRequest = {
             utilityProvider: validatedUtilityProvider!, 
             openapiSpecification: requestBody.openapiSpecification,
             securityOption: requestBody.securityOption,

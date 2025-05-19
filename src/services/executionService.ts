@@ -51,13 +51,13 @@ export const handleExecution = async (
             response = validationResult;
             try {
                 await recordApiToolExecution({
-                    api_tool_id: apiTool.id,
-                    user_id: agentServiceCredentials.clientUserId, 
+                    apiToolId: apiTool.id,
+                    userId: agentServiceCredentials.clientUserId, 
                     input: executionOutcome.input,
                     output: executionOutcome.output,
-                    status_code: executionOutcome.status_code!,
+                    statusCode: executionOutcome.status_code!,
                     error: executionOutcome.error,
-                    error_details: executionOutcome.error_details,
+                    errorDetails: executionOutcome.error_details,
                 });
             } catch (dbLogError) {
                 console.error(`${logPrefix} FAILED to record VALIDATION FAILURE to DB:`, dbLogError);
@@ -85,13 +85,13 @@ export const handleExecution = async (
             
             try {
                 await recordApiToolExecution({
-                    api_tool_id: apiTool.id,
-                    user_id: agentServiceCredentials.clientUserId,
+                    apiToolId: apiTool.id,
+                    userId: agentServiceCredentials.clientUserId,
                     input: executionOutcome.input || params, 
                     output: executionOutcome.output,
-                    status_code: executionOutcome.status_code!, 
+                    statusCode: executionOutcome.status_code!, 
                     error: executionOutcome.error,
-                    error_details: executionOutcome.error_details,
+                    errorDetails: executionOutcome.error_details,
                     hint: executionOutcome.hint,
                 });
             } catch (dbLogError) {
@@ -171,13 +171,13 @@ export const handleExecution = async (
     // Common logging point for both success and caught errors
     try {
         await recordApiToolExecution({
-            api_tool_id: apiTool.id,
-            user_id: agentServiceCredentials.clientUserId,
+            apiToolId: apiTool.id,
+            userId: agentServiceCredentials.clientUserId,
             input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set
             output: executionOutcome.output,
-            status_code: executionOutcome.status_code!, // Should be set in success or catch block
+            statusCode: executionOutcome.status_code!, // Should be set in success or catch block
             error: executionOutcome.error,
-            error_details: executionOutcome.error_details,
+            errorDetails: executionOutcome.error_details,
             hint: executionOutcome.hint,
         });
     } catch (dbError) {

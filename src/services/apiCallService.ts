@@ -2,13 +2,10 @@ import axios, { AxiosRequestConfig, Method } from 'axios';
 import { Buffer } from 'buffer';
 import { ApiTool } from '@agent-base/types';
 import { 
-    OpenAPIObject, 
-    OperationObject, 
     ParameterObject, 
     RequestBodyObject, 
     SchemaObject, 
     ReferenceObject,
-    ServerObject,
     SecuritySchemeObject
 } from 'openapi3-ts/oas30';
 import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // Assuming getOperation is in a shared utils.ts and added credential key helpers
@@ -46,6 +43,7 @@ export const makeApiCall = async (
             break;
         }
     }
+
     if (!httpMethod) {
         throw new Error(`${logPrefix} Could not determine HTTP method for the operation.`);
     }

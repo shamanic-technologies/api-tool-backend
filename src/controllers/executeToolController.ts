@@ -8,7 +8,7 @@ import {
 } from '@agent-base/types'; 
 // getAuthHeadersFromAgent is no longer needed here, it's handled by agentAuthMiddleware
 import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware'; // Import the interface
-
+import { runToolExecution } from '../services/runToolService';
 /**
  * Controller to execute a specific API tool.
  * Relies on 'agentAuthMiddleware' to have populated 'req.agentServiceCredentials'.
@@ -48,7 +48,7 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
         }
 
         console.log(`[API Tool Service] Executing tool ${toolId} for conversationId: ${conversationId} by user: ${serviceCredentials.clientUserId}`);
-        const result: ApiToolExecutionResponse = await utilityService.runToolExecution(
+        const result: ApiToolExecutionResponse = await runToolExecution(
             serviceCredentials as Required<ServiceCredentials>, // Cast to satisfy AgentServiceCredentials if platformUserId is the only diff
             toolId, 
             conversationId, 
@@ -76,12 +76,12 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
         }
 
     } catch (error) {
-         if (error instanceof Error && error.message.includes('not found')) {
-            console.error(`[API Tool Service] Tool ${toolId} not found during execution attempt by user: ${serviceCredentials.clientUserId}.`);
-            res.status(404).json({ success: false, error: error.message });
-         } else {
-            console.error(`[API Tool Service] Unexpected error executing tool ${toolId} for user: ${serviceCredentials.clientUserId}:`, error);
-            next(error); 
-         }
+        if (error instanceof Error && error.message.includes('not found')) {
+           console.error(`[API Tool Service] Tool ${toolId} not found during execution attempt by user: ${serviceCredentials.clientUserId}.`);
+           res.status(404).json({ success: false, error: error.message });
+        } else {
+           console.error(`[API Tool Service] Unexpected error executing tool ${toolId} for user: ${serviceCredentials.clientUserId}:`, error);
+           next(error); 
+        }
     }
 }; 

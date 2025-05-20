@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Node.js
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+# pnpm-lock.yaml # Explicitly copied in Dockerfile
+
+# Build output
+dist
+.turbo
+
+# OS generated files
+.DS_Store
+*.pem
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE / Editor specific
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Log files
+logs
+*.log
+
+# Other
+*.tgz
+
+# Service account key
+service-account-key.json

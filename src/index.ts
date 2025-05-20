@@ -1,6 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
-import { GoogleSecretManager, GoogleCloudSecretManagerApiError } from '@agent-base/secret-client';
+import { GoogleSecretManager } from '@agent-base/secret-client';
 import utilityRoutes from './routes/utilityRoutes';
 import path from 'path';
 import fs from 'fs';
@@ -25,29 +25,44 @@ if (nodeEnv === 'development') {
 // --- GSM Client (to be initialized) ---
 export let gsmClient: GoogleSecretManager;
 
+async function prepareGcpCredentials() {
+    const credsContent = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (credsContent && credsContent.trim().startsWith('{')) {
+        console.log('GOOGLE_APPLICATION_CREDENTIALS appears to be JSON content. Writing to temporary file...');
+        try {
+            const tempDir = '/tmp';
+            if (!fs.existsSync(tempDir)) {
+                fs.mkdirSync(tempDir, { recursive: true });
+            }
+            const tempCredPath = path.join(tempDir, 'gcp_creds.json');
+            fs.writeFileSync(tempCredPath, credsContent);
+            process.env.GOOGLE_APPLICATION_CREDENTIALS = tempCredPath;
+            console.log(`Credentials written to ${tempCredPath} and GOOGLE_APPLICATION_CREDENTIALS updated.`);
+        } catch (error) {
+            console.error('FATAL ERROR: Failed to write GOOGLE_APPLICATION_CREDENTIALS content to temporary file:', error);
+            process.exit(1);
+        }
+    } else if (credsContent) {
+        console.log('GOOGLE_APPLICATION_CREDENTIALS appears to be a file path. Using as is.');
+    } else {
+        console.warn('GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. Attempting to use Application Default Credentials.');
+    }
+}
+
 // --- Initialization Function ---
 async function initializeConfig() {
     console.log('🔧 Initializing configuration for Secret Manager...');
+    await prepareGcpCredentials(); // Prepare credentials before initializing client
+
     const projectId = process.env.GOOGLE_PROJECT_ID;
     if (!projectId) {
         console.error("FATAL ERROR: GOOGLE_PROJECT_ID environment variable is not set.");
         process.exit(1);
     }
 
-    let credentialsJson;
-    if (process.env.GOOGLE_CREDENTIALS_JSON) {
-        try {
-            credentialsJson = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
-        } catch (e) {
-            console.error("Failed to parse GOOGLE_CREDENTIALS_JSON. Falling back to ADC if available.", e);
-            // If parsing fails, credentialsJson remains undefined, and the client will attempt ADC
-        }
-    }
-
     try {
         gsmClient = new GoogleSecretManager({
             projectId: projectId,
-            credentials: credentialsJson, 
         });
         console.log('✅ GoogleSecretManager initialized successfully.');
     } catch (error) {

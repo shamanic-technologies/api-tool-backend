@@ -1,13 +1,12 @@
 import { Ajv, ErrorObject } from 'ajv';
-// Use require for ajv-formats as it's a common pattern for CJS modules in ESM
-const addFormats = require('ajv-formats'); 
+import addFormatsRaw from 'ajv-formats';
 import { ApiTool, ErrorResponse } from '@agent-base/types'; // Updated import
 import { JSONSchema7 } from 'json-schema';
 import { deriveSchemaFromOperation, getOperation } from './utils.js'; // Ensure this import is present
 
 // Initialize AJV
 const ajv = new Ajv({ allErrors: true });
-addFormats(ajv); // Add formats like email, date-time, etc.
+(addFormatsRaw as any)(ajv); // Add formats like email, date-time, etc. Cast to any to bypass linter issue
 
 /**
  * Validates input parameters against a schema derived from the ApiTool's OpenAPI specification.

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import * as utilityService from '../services/utilityService';
+import * as utilityService from '../services/utilityService.js';
 import { 
     ApiTool, 
     // ApiToolInfo, // Not used in listTools

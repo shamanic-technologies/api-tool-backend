@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import * as utilityService from '../services/utilityService';
+import * as utilityService from '../services/utilityService.js';
 import { 
     ApiToolExecutionResponse, 
     ExecuteToolPayload,
@@ -7,8 +7,9 @@ import {
     ServiceCredentials
 } from '@agent-base/types'; 
 // getAuthHeadersFromAgent is no longer needed here, it's handled by agentAuthMiddleware
-import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware'; // Import the interface
-import { runToolExecution } from '../services/runToolService';
+import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
+import { runToolExecution } from '../services/runToolService.js';
+
 /**
  * Controller to execute a specific API tool.
  * Relies on 'agentAuthMiddleware' to have populated 'req.agentServiceCredentials'.

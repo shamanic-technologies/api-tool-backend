@@ -11,14 +11,19 @@ import {
     createApiTool,
     getApiToolById,
     getAllApiTools,
-} from './databaseService';
+    // addNewApiToolToDb, // This seems to be an alias or older name for createApiTool
+    // updateApiTool, // Assuming this is handled by a specific update function if needed
+    // deleteApiToolById // Assuming this is handled by a specific delete function if needed
+} from './databaseService.js';
 import {
     getOperation,
     deriveSchemaFromOperation,
-} from './utils';
+    // deriveToolNameFromOpenAPI, // Not found by linter
+    // validateSecuritySecretsAgainstScheme, // This is not exported from utils.ts
+} from './utils.js';
 import OpenAI from 'openai';
 import { OpenAPIObject } from 'openapi3-ts/oas30';
-import { ApiToolRecord } from '../types/db.types';
+import { ApiToolRecord } from '../types/db.types.js';
 
 /**
  * @file Utility Service
@@ -83,8 +88,8 @@ const generateOpenAIEmbedding = async (openapiSpec: OpenAPIObject): Promise<numb
  * @returns {Promise<ApiToolList>} A list of API tool summaries.
  */
 export const listAvailableTools = async (): Promise<UtilitiesList> => {
-    const toolRecords = await getAllApiTools();
-    return toolRecords.map(tool => ({
+    const toolRecords = await getAllApiTools(); 
+    return toolRecords.map((tool: ApiTool) => ({ // Add any type for tool
         id: tool.id,
         name: tool.name,
         description: tool.description,

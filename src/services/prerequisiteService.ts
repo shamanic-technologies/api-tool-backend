@@ -6,7 +6,7 @@ import {
     UtilityInputSecret // Keep for now, for casting target
 } from '@agent-base/types';
 
-import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // Import from utils, including new helpers
+import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils.js'; // Import from utils, including new helpers
 
 /**
  * Checks prerequisites (Secrets) based on the ApiTool's OpenAPI specification and pre-fetched secrets.

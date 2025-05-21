@@ -8,7 +8,7 @@ import {
     ReferenceObject,
     SecuritySchemeObject
 } from 'openapi3-ts/oas30';
-import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils'; // Assuming getOperation is in a shared utils.ts and added credential key helpers
+import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils.js'; // Assuming getOperation is in a shared utils.ts and added credential key helpers
 
 /**
  * Makes an API call based on the ApiTool's OpenAPI specification.

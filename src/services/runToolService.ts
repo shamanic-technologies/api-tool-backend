@@ -1,11 +1,11 @@
-import { getBasicAuthCredentialKeys } from "./utils";
+import { getBasicAuthCredentialKeys } from "./utils.js";
 import { ApiToolExecutionData, ApiToolStatus, SetupNeeded, SuccessResponse, UserType } from "@agent-base/types";
 import { ApiToolExecutionResponse, UtilityInputSecret, AgentServiceCredentials } from "@agent-base/types";
 import { generateSecretManagerId } from "@agent-base/secret-client";
-import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateUserApiToolStatus } from "./databaseService";
-import { gsmClient } from "..";
-import { getCredentialKeyForScheme } from "./utils";
-import { handleExecution } from "./executionService";
+import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateUserApiToolStatus } from "./databaseService.js";
+import { gsmClient } from "../index.js";
+import { getCredentialKeyForScheme } from "./utils.js";
+import { handleExecution } from "./executionService.js";
 
 
 /**

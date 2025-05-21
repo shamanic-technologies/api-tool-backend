@@ -7,13 +7,14 @@ import {
     SetupNeeded,
 } from '@agent-base/types';
 import axios from 'axios';
-import { ApiToolExecutionRecord } from '../types/db.types';
+import { ApiToolExecutionRecord } from '../types/db.types.js';
+import { ApiToolRecord } from '../types/db.types.js'; // Also needed for ApiTool type used in parameters
 
 // Import functions from the new services
-import { validateInputParameters } from './validationService';
-import { checkPrerequisites } from './prerequisiteService';
-import { makeApiCall } from './apiCallService';
-import { recordApiToolExecution } from './databaseService';
+import { validateInputParameters } from './validationService.js';
+import { checkPrerequisites } from './prerequisiteService.js';
+import { makeApiCall } from './apiCallService.js';
+import { recordApiToolExecution } from './databaseService.js';
 
 /**
  * Handles the full execution flow for a given API tool.

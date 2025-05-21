@@ -1,4 +1,4 @@
-import { query } from '../lib/db';
+import { query } from '../lib/db.js';
 import { SearchApiToolResultItem, ApiToolStatus, UtilityProvider, SearchApiToolResult } from '@agent-base/types';
 
 /**
@@ -64,7 +64,7 @@ export const getUserApiTools = async (userId: string): Promise<SearchApiToolResu
     try {
         const result = await query(sql, [userId, deletedStatus]);
 
-        const items: SearchApiToolResultItem[] = result.rows.map(row => {
+        const items: SearchApiToolResultItem[] = result.rows.map((row: any) => {
             return {
                 apiToolId: row.apiToolId,
                 name: row.name,

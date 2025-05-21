@@ -1,5 +1,5 @@
-import { query } from '../lib/db'; // Removed .js extension
-import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types'; // Removed .js extension, Added ApiToolExecution and UserApiTool
+import { query } from '../lib/db.js'; // Removed .js extension
+import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types.js'; // Removed .js extension, Added ApiToolExecution and UserApiTool
 import { ApiTool, ApiToolData, ApiToolExecution, ApiToolExecutionData, ApiToolStatus, UserApiTool } from '@agent-base/types'; // Import ApiToolStatus directly
 import { Pool, QueryResult } from 'pg'; // Example: using pg
 

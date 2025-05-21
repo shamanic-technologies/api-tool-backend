@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
-import { getToolExecutionsByUserId } from '../services/databaseService'; // Updated import
-import { ApiToolExecutionRecord } from '../types/db.types'; // Import the type for clarity
-import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware'; // Import the interface
+import { Request, Response, NextFunction } from 'express';
+import { getToolExecutionsByUserId } from '../services/databaseService.js'; // Updated import
+import { ApiToolExecutionRecord } from '../types/db.types.js'; // Import the type for clarity
+import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
 import { ApiToolExecution } from '@agent-base/types';
 
 /**

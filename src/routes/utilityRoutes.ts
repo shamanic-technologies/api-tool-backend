@@ -1,16 +1,16 @@
-import { Router } from 'express';
-import * as createToolController from '../controllers/createToolController';
-import * as listToolsController from '../controllers/listToolsController';
-import * as getToolInfoController from '../controllers/getToolInfoController';
-import * as executeToolController from '../controllers/executeToolController';
-import * as getUserApiToolsController from '../controllers/getUserApiToolsController';
-import * as getUserToolExecutionsController from '../controllers/getUserToolExecutionsController';
+import express, { Router } from 'express';
+import * as createToolController from '../controllers/createToolController.js';
+import * as listToolsController from '../controllers/listToolsController.js';
+import * as getToolInfoController from '../controllers/getToolInfoController.js';
+import * as executeToolController from '../controllers/executeToolController.js';
+import * as getUserApiToolsController from '../controllers/getUserApiToolsController.js';
+import * as getUserToolExecutionsController from '../controllers/getUserToolExecutionsController.js';
 
 // Import Middlewares
-import { serviceKeyAuthMiddleware } from '../middleware/serviceKeyAuthMiddleware';
-import { agentAuthMiddleware } from '../middleware/agentAuthMiddleware';
+import { serviceKeyAuthMiddleware } from '../middleware/serviceKeyAuthMiddleware.js';
+import { agentAuthMiddleware } from '../middleware/agentAuthMiddleware.js';
 
-const router: Router = Router();
+const router: Router = express.Router();
 
 // Apply serviceKeyAuthMiddleware to all routes in this router first
 router.use(serviceKeyAuthMiddleware);

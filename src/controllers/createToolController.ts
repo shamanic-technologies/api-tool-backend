@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import * as utilityService from '../services/utilityService';
+import * as utilityService from '../services/utilityService.js';
 import { 
     UtilityProvider,
     UtilityInputSecret,
@@ -8,7 +8,7 @@ import {
 } from '@agent-base/types'; 
 import { OpenAPIObject } from 'openapi3-ts/oas30'; 
 import SwaggerParser from 'swagger-parser';
-import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware'; // Import the interface
+import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
 
 /**
  * Validates the OpenAPI specification object using swagger-parser and checks custom conventions.

@@ -1,7 +1,7 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 import { GoogleSecretManager } from '@agent-base/secret-client';
-import utilityRoutes from './routes/utilityRoutes';
+import utilityRoutes from './routes/utilityRoutes.js';
 import path from 'path';
 import fs from 'fs';
 

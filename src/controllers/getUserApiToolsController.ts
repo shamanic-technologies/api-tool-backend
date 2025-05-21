@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import * as executionStatsService from '../services/searchService';
-import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware';
-import { SearchApiToolResult } from '@agent-base/types';
+import * as executionStatsService from '../services/searchService.js';
+import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js';
+import { SearchApiToolResult, SearchApiToolResultItem } from '@agent-base/types';
 
 /**
  * Controller to get all API tools for a specific user.

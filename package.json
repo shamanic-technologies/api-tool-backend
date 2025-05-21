@@ -2,6 +2,7 @@
   "name": "@shamanic-technologies/api-tool-backend",
   "version": "0.1.0",
   "private": false,
+  "type": "module",
   "description": "A backend service providing API tool functionalities.",
   "author": "Shamanic Technologies <contact@shamanic.tech>",
   "license": "Apache-2.0",

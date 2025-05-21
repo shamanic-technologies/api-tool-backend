@@ -1,8 +1,9 @@
-import Ajv, { ErrorObject } from 'ajv';
+import { Ajv, ErrorObject } from 'ajv';
 // Use require for ajv-formats as it's a common pattern for CJS modules in ESM
 const addFormats = require('ajv-formats'); 
 import { ApiTool, ErrorResponse } from '@agent-base/types'; // Updated import
-import { deriveSchemaFromOperation, getOperation } from './utils'; // Ensure this import is present
+import { JSONSchema7 } from 'json-schema';
+import { deriveSchemaFromOperation, getOperation } from './utils.js'; // Ensure this import is present
 
 // Initialize AJV
 const ajv = new Ajv({ allErrors: true });

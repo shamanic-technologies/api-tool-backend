@@ -18,7 +18,7 @@
     "migrate:create": "pnpm exec node-pg-migrate create",
     "migrate:up": "pnpm exec node-pg-migrate up",
     "migrate:down": "pnpm exec node-pg-migrate down"
-  },
+  }, 
   "dependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

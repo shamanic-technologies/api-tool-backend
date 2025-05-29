@@ -7,7 +7,6 @@ RUN npm install -g pnpm
 # Copy package manifests
 COPY package.json ./
 COPY pnpm-lock.yaml ./
-# pnpm-workspace.yaml is not typically needed for a single service build like this if dependencies are correctly specified.
 
 # Install dependencies using the lockfile
 RUN pnpm install --frozen-lockfile
@@ -15,6 +14,7 @@ RUN pnpm install --frozen-lockfile
 # --- Build stage ---
 FROM base AS build
 WORKDIR /app
+# node_modules are already correctly installed in the base stage
 # Copy source code
 COPY . .
 # Build the application

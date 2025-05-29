@@ -30,11 +30,16 @@ ENV NODE_ENV=production
 COPY --from=build /app/dist ./dist
 # Copy production dependencies from the base stage
 COPY --from=base /app/node_modules ./node_modules
-# Copy package.json (might be needed for runtime)
+# Copy package.json (might be needed for runtime and for pnpm migrate:up)
 COPY --from=base /app/package.json ./
+# Copy pnpm-lock.yaml as well, as pnpm might need it for migrate:up script resolution
+COPY --from=base /app/pnpm-lock.yaml ./
+
+# Copy migration scripts from the build stage
+COPY --from=build /app/migrations ./migrations
 
 # Expose the application port (defaulting to 3000, adjust if necessary)
 EXPOSE 3000
 
-# Command to run the application
-CMD ["node", "dist/index.js"] 
+# Command to run migrations and then the application
+CMD ["sh", "-c", "pnpm migrate:up && node dist/index.js"] 

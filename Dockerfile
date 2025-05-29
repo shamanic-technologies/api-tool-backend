@@ -24,6 +24,9 @@ RUN pnpm build
 FROM node:18-slim AS production
 WORKDIR /app
 
+# Install pnpm in the production stage as well
+RUN npm install -g pnpm
+
 ENV NODE_ENV=production
 
 # Copy built artifacts from the build stage

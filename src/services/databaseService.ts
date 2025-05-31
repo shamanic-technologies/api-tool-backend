@@ -22,6 +22,8 @@ const mapRowToApiTool = (row: any): ApiTool => {
         securitySecrets: row.security_secrets,
         isVerified: row.is_verified,
         creatorUserId: row.creator_user_id,
+        // @ts-ignore - creatorOrganizationId is in the ApiTool type
+        creatorOrganizationId: row.creator_organization_id,
         embedding: row.embedding,
         createdAt: new Date(row.created_at),
         updatedAt: new Date(row.updated_at),
@@ -59,6 +61,7 @@ const mapRowToApiToolExecution = (row: any): ApiToolExecution => {
         id: row.id,
         apiToolId: row.api_tool_id,
         userId: row.user_id,
+        organizationId: row.organization_id,
         input: parsedInput,
         output: parsedOutput,
         statusCode: row.status_code,
@@ -74,6 +77,7 @@ const mapRowToApiToolExecution = (row: any): ApiToolExecution => {
 const mapRowToUserApiTool = (row: any): UserApiTool => {
     return {
         userId: row.user_id,
+        organizationId: row.organization_id,
         apiToolId: row.api_tool_id,
         status: row.status as ApiToolStatus, // Ensure this matches the enum values, e.g., 'unset', 'active'
         createdAt: new Date(row.created_at),
@@ -110,15 +114,17 @@ export const createApiTool = async (
         securitySecrets,
         isVerified,
         creatorUserId,
+        // @ts-ignore - creatorOrganizationId is in the ApiTool type
+        creatorOrganizationId,
         embedding,
     } = toolData;
 
     const sql = `
         INSERT INTO api_tools (
             name, description, utility_provider, openapi_specification, security_option,
-            security_secrets, is_verified, creator_user_id, embedding
+            security_secrets, is_verified, creator_user_id, creator_organization_id, embedding
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *;
     `;
     try {
@@ -131,6 +137,7 @@ export const createApiTool = async (
             JSON.stringify(securitySecrets),
             isVerified,
             creatorUserId,
+            creatorOrganizationId,
             embedding ? embedding : null,
         ];
         const result = await query(sql, params);
@@ -282,10 +289,10 @@ export const deleteApiTool = async (id: string): Promise<boolean> => {
 export const recordApiToolExecution = async (
     executionData: ApiToolExecutionData
 ): Promise<ApiToolExecution> => {
-    const { apiToolId, userId, input, output, statusCode, error, errorDetails, hint } = executionData;
+    const { apiToolId, userId, organizationId, input, output, statusCode, error, errorDetails, hint } = executionData;
     const sql = `
-        INSERT INTO api_tool_executions (api_tool_id, user_id, input, output, status_code, error, error_details, hint)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO api_tool_executions (api_tool_id, user_id, organization_id, input, output, status_code, error, error_details, hint)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *;
     `;
     // Ensure input and output are stringified if they are objects and your DB column is JSON/TEXT
@@ -297,6 +304,7 @@ export const recordApiToolExecution = async (
         const params = [
             apiToolId,
             userId,
+            organizationId,
             safeInput,
             safeOutput,
             statusCode,
@@ -321,15 +329,15 @@ export const recordApiToolExecution = async (
  * @param {string} userId - The ID of the user whose executions are to be retrieved.
  * @returns {Promise<ApiToolExecutionRecord[]>} A list of execution records.
  */
-export const getToolExecutionsByUserId = async (userId: string): Promise<ApiToolExecution[]> => {
+export const getToolExecutionsByUserId = async (userId: string, organizationId: string): Promise<ApiToolExecution[]> => {
     const sql = `
         SELECT * FROM api_tool_executions
-        WHERE user_id = $1
+        WHERE user_id = $1 AND organization_id = $2
         ORDER BY created_at DESC;
     `;
     try {
-        const result = await query(sql, [userId]); // Using generic query
-        console.log(`[DB SERVICE] Retrieved ${result.rows.length} executions for user ${userId}`);
+        const result = await query(sql, [userId, organizationId]); // Using generic query
+        console.log(`[DB SERVICE] Retrieved ${result.rows.length} executions for user ${userId} in organization ${organizationId}`);
         return result.rows.map(mapRowToApiToolExecution); // Using helper
     } catch (dbError) {
         console.error('[DB SERVICE] Error in getToolExecutionsByUserId:', dbError);
@@ -347,28 +355,28 @@ export const getToolExecutionsByUserId = async (userId: string): Promise<ApiTool
  * @returns {Promise<UserApiToolRecord>} The found or created UserApiToolRecord.
  * @throws {Error} If the database operation fails.
  */
-export const getOrCreateUserApiTool = async (userId: string, apiToolId: string): Promise<UserApiTool> => {
-    const findSql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND api_tool_id = $2;';
+export const getOrCreateUserApiTool = async (userId: string, organizationId: string, apiToolId: string): Promise<UserApiTool> => {
+    const findSql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND organization_id = $2 AND api_tool_id = $3;';
     try {
-        const findResult = await query(findSql, [userId, apiToolId]);
+        const findResult = await query(findSql, [userId, organizationId, apiToolId]);
         if (findResult.rows.length > 0) {
             return mapRowToUserApiTool(findResult.rows[0]);
         } else {
             // Not found, create a new one. 'created_at' and 'updated_at' will use DB defaults.
             const insertSql = `
-                INSERT INTO user_api_tools (user_id, api_tool_id, status)
-                VALUES ($1, $2, $3)
+                INSERT INTO user_api_tools (user_id, organization_id, api_tool_id, status)
+                VALUES ($1, $2, $3, $4)
                 RETURNING *;
             `;
             // Use ApiToolStatus.UNSET which is 'unset'
-            const insertResult = await query(insertSql, [userId, apiToolId, ApiToolStatus.UNSET]);
+            const insertResult = await query(insertSql, [userId, organizationId, apiToolId, ApiToolStatus.UNSET]);
             if (insertResult.rows.length === 0) {
                 throw new Error('Failed to create UserApiToolRecord, no record returned.');
             }
             return mapRowToUserApiTool(insertResult.rows[0]);
         }
     } catch (error) {
-        console.error(`Error in getOrCreateUserApiTool for user ${userId}, tool ${apiToolId}:`, error);
+        console.error(`Error in getOrCreateUserApiTool for user ${userId}, organization ${organizationId}, tool ${apiToolId}:`, error);
         throw new Error('Could not get or create UserApiToolRecord.');
     }
 };
@@ -381,24 +389,24 @@ export const getOrCreateUserApiTool = async (userId: string, apiToolId: string):
  * @returns {Promise<UserApiToolRecord | null>} The updated UserApiToolRecord, or null if not found.
  * @throws {Error} If the database operation fails.
  */
-export const updateUserApiToolStatus = async (userId: string, apiToolId: string, status: ApiToolStatus): Promise<UserApiTool | null> => {
+export const updateUserApiToolStatus = async (userId: string, organizationId: string, apiToolId: string, status: ApiToolStatus): Promise<UserApiTool | null> => {
     const sql = `
         UPDATE user_api_tools
         SET status = $1, updated_at = current_timestamp
-        WHERE user_id = $2 AND api_tool_id = $3
+        WHERE user_id = $2 AND organization_id = $3 AND api_tool_id = $4
         RETURNING *;
     `;
     try {
-        const result = await query(sql, [status, userId, apiToolId]);
+        const result = await query(sql, [status, userId, organizationId, apiToolId]);
         if (result.rows.length === 0) {
             // It's possible the record doesn't exist, which might not be an error in all cases.
             // Depending on requirements, you might want to throw or log here.
-            console.warn(`No UserApiToolRecord found for user ${userId} and tool ${apiToolId} to update status.`);
+            console.warn(`No UserApiToolRecord found for user ${userId} in organization ${organizationId} and tool ${apiToolId} to update status.`);
             return null;
         }
         return mapRowToUserApiTool(result.rows[0]);
     } catch (error) {
-        console.error(`Error updating UserApiToolRecord status for user ${userId}, tool ${apiToolId}:`, error);
+        console.error(`Error updating UserApiToolRecord status for user ${userId} in organization ${organizationId}, tool ${apiToolId}:`, error);
         throw new Error('Could not update UserApiToolRecord status.');
     }
 };
@@ -409,13 +417,13 @@ export const updateUserApiToolStatus = async (userId: string, apiToolId: string,
  * @returns {Promise<UserApiToolRecord[]>} An array of UserApiToolRecord.
  * @throws {Error} If the database operation fails.
  */
-export const getUserApiToolsByUserId = async (userId: string): Promise<UserApiTool[]> => {
-    const sql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND status != $2 ORDER BY created_at DESC;';
+export const getUserApiToolsByUserId = async (userId: string, organizationId: string): Promise<UserApiTool[]> => {
+    const sql = 'SELECT * FROM user_api_tools WHERE user_id = $1 AND organization_id = $2 AND status != $3 ORDER BY created_at DESC;';
     try {
-        const result = await query(sql, [userId, ApiToolStatus.DELETED]);
+        const result = await query(sql, [userId, organizationId, ApiToolStatus.DELETED]);
         return result.rows.map(mapRowToUserApiTool);
     } catch (error) {
-        console.error(`Error fetching user API tools for user ID ${userId}:`, error);
+        console.error(`Error fetching user API tools for user ID ${userId} in organization ${organizationId}:`, error);
         throw new Error('Could not retrieve user API tools.');
     }
 }; 

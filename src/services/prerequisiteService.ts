@@ -1,7 +1,7 @@
 import {
     ApiTool,
     SuccessResponse,
-    AgentServiceCredentials,
+    AgentInternalCredentials,
     SetupNeeded,
     UtilityInputSecret // Keep for now, for casting target
 } from '@agent-base/types';
@@ -12,7 +12,7 @@ import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } f
  * Checks prerequisites (Secrets) based on the ApiTool's OpenAPI specification and pre-fetched secrets.
  * This version NO LONGER CALLS secret-service.
  * @param {ApiTool} apiTool The API tool configuration.
- * @param {AgentServiceCredentials} agentServiceCredentials Credentials for the agent (only clientUserId needed here).
+ * @param {AgentInternalCredentials} agentServiceCredentials Credentials for the agent (only clientUserId needed here).
  * @param {Record<string, string>} resolvedSecrets Pre-fetched secrets from utilityService (GSM).
  * @returns {Promise<{
  *    prerequisitesMet: boolean;
@@ -22,7 +22,7 @@ import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } f
  */
 export const checkPrerequisites = async (
     apiTool: ApiTool,
-    agentServiceCredentials: AgentServiceCredentials,
+    agentServiceCredentials: AgentInternalCredentials,
     resolvedSecrets: Record<string, string> // Secrets already fetched by utilityService
 ): Promise<{ 
     prerequisitesMet: boolean; 
@@ -32,6 +32,7 @@ export const checkPrerequisites = async (
     const logPrefix = `[PrerequisiteService ${apiTool.id}]`;
     console.log(`${logPrefix} Checking prerequisites using pre-fetched resolvedSecrets...`);
     const { clientUserId } = agentServiceCredentials; // Needed for SetupNeeded response
+    const { clientOrganizationId } = agentServiceCredentials; // Needed for SetupNeeded response
 
     const operation = getOperation(apiTool.openapiSpecification, logPrefix);
     if (!operation) {

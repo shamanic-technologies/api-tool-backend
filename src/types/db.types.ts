@@ -13,6 +13,7 @@ import { OpenAPIObject } from "openapi3-ts/oas30";
 
 export interface UserApiToolRecord {
     user_id: string;
+    organization_id: string;
     api_tool_id: string;
     status: ApiToolStatus;
     created_at: Date;
@@ -36,6 +37,7 @@ export interface ApiToolRecord {
  };
  is_verified: boolean;
  creator_user_id: string;
+ creator_organization_id: string;
  embedding?: number[]; // Assuming numeric vector, adjust if needed
  created_at: Date;
  updated_at: Date;
@@ -45,6 +47,7 @@ export interface ApiToolExecutionRecord {
     id: string;
     api_tool_id: string;
     user_id: string;
+    organization_id: string;
     input: any;
     output: any;
     status_code: number;

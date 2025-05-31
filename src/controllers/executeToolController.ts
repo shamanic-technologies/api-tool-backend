@@ -4,7 +4,7 @@ import {
     ApiToolExecutionResponse, 
     ExecuteToolPayload,
     SuccessResponse, // Added for explicit typing
-    ServiceCredentials
+    HumanInternalCredentials
 } from '@agent-base/types'; 
 // getAuthHeadersFromAgent is no longer needed here, it's handled by agentAuthMiddleware
 import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
@@ -21,7 +21,7 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
     const toolId = req.params.id;
     // Cast req to AuthenticatedRequestWithAgent to access serviceCredentials
     const authenticatedReq = req as AuthenticatedRequestWithAgent;
-    const serviceCredentials = authenticatedReq.serviceCredentials;
+    const serviceCredentials = authenticatedReq.humanInternalCredentials;
 
     console.log(`[API Tool Service] Attempting to execute tool ID: ${toolId} by user: ${serviceCredentials.clientUserId}`);
     
@@ -50,7 +50,7 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
 
         console.log(`[API Tool Service] Executing tool ${toolId} for conversationId: ${conversationId} by user: ${serviceCredentials.clientUserId}`);
         const result: ApiToolExecutionResponse = await runToolExecution(
-            serviceCredentials as Required<ServiceCredentials>, // Cast to satisfy AgentServiceCredentials if platformUserId is the only diff
+            serviceCredentials as Required<HumanInternalCredentials>, // Cast to satisfy AgentServiceCredentials if platformUserId is the only diff
             toolId, 
             conversationId, 
             params

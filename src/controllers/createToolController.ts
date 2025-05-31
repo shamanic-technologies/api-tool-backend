@@ -4,7 +4,6 @@ import {
     UtilityProvider,
     UtilityInputSecret,
     CreateApiToolRequest,
-    // ApiTool, // No longer directly used as input type for addNewTool
 } from '@agent-base/types'; 
 import { OpenAPIObject } from 'openapi3-ts/oas30'; 
 import SwaggerParser from 'swagger-parser';
@@ -81,14 +80,15 @@ const validateOpenApiStructureWithLib = async (openapiSpec: OpenAPIObject): Prom
  */
 export const createTool = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const authenticatedReq = req as AuthenticatedRequestWithAgent;
-    const serviceCredentials = authenticatedReq.serviceCredentials;
+    const humanInternalCredentials = authenticatedReq.humanInternalCredentials;
 
-    if (!serviceCredentials || !serviceCredentials.clientUserId) {
+    if (!humanInternalCredentials || !humanInternalCredentials.clientUserId) {
         console.warn('[API Tool Service] createTool called without valid serviceCredentials or clientUserId.');
         res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
         return;
     }
-    const creatorUserId = serviceCredentials.clientUserId;
+    const creatorUserId = humanInternalCredentials.clientUserId;
+    const creatorOrganizationId = humanInternalCredentials.clientOrganizationId;
     console.log(`[API Tool Service] Attempting to create tool for user: ${creatorUserId}`);
 
     try {
@@ -238,7 +238,9 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             securityOption: requestBody.securityOption,
             securitySecrets: normalizedSecuritySecrets, 
             isVerified: requestBody.isVerified === undefined ? false : !!requestBody.isVerified,
-            creatorUserId: creatorUserId, // Use creatorUserId from authenticated agent
+            creatorUserId: creatorUserId,
+            // @ts-ignore - creatorOrganizationId is not in the ApiToolData type
+            creatorOrganizationId: creatorOrganizationId,
         };
         
         console.log(`[API Tool Service] Creating tool with validated data for user: ${creatorUserId}`);

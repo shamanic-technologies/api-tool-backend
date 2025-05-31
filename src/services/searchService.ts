@@ -10,11 +10,12 @@ import { SearchApiToolResultItem, ApiToolStatus, UtilityProvider, SearchApiToolR
  * Retrieves all API tools for a specific user, enriched with tool details and execution statistics,
  * using a single database query. The result is wrapped in a SearchApiToolResult object.
  * @param {string} userId The ID of the user.
+ * @param {string} organizationId The ID of the organization.
  * @returns {Promise<SearchApiToolResult>} An object containing the list of tools and the total count.
  * @throws {Error} If retrieval or processing fails.
  */
-export const getUserApiTools = async (userId: string): Promise<SearchApiToolResult> => {
-    const logPrefix = `[ExecutionStatsService GetUserApiTools SingleQuery User: ${userId}]`;
+export const getUserApiTools = async (userId: string, organizationId: string): Promise<SearchApiToolResult> => {
+    const logPrefix = `[ExecutionStatsService GetUserApiTools SingleQuery User: ${userId} in organization: ${organizationId}]`;
     console.log(`${logPrefix} Retrieving and enriching tools for user.`);
 
     // Note: ApiToolStatus.DELETED is assumed to be the string 'deleted'.
@@ -58,11 +59,12 @@ export const getUserApiTools = async (userId: string): Promise<SearchApiToolResu
         ) stats ON uat.api_tool_id = stats.api_tool_id AND uat.user_id = stats.user_id
         WHERE
             uat.user_id = $1
-            AND uat.status != $2;  -- Use $2 for the deleted status parameter
-    `;
+            AND uat.organization_id = $2
+            AND uat.status != $3;  -- Use $3 for the deleted status parameter
+    `; // Note: $2 is organizationId, $3 is deletedStatus
 
     try {
-        const result = await query(sql, [userId, deletedStatus]);
+        const result = await query(sql, [userId, organizationId, deletedStatus]);
 
         const items: SearchApiToolResultItem[] = result.rows.map((row: any) => {
             return {
@@ -73,6 +75,7 @@ export const getUserApiTools = async (userId: string): Promise<SearchApiToolResu
                 securityOption: row.securityOption,
                 isVerified: row.isVerified,
                 creatorUserId: row.creatorUserId, // Can be null/undefined from DB
+                creatorOrganizationId: row.creatorOrganizationId, // Can be null/undefined from DB
                 userId: row.userId,
                 status: row.status as ApiToolStatus, // Ensure this matches ApiToolStatus enum values
                 totalExecutions: parseInt(String(row.totalExecutions), 10),

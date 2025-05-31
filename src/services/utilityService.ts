@@ -23,7 +23,6 @@ import {
 } from './utils.js';
 import OpenAI from 'openai';
 import { OpenAPIObject } from 'openapi3-ts/oas30';
-import { ApiToolRecord } from '../types/db.types.js';
 
 /**
  * @file Utility Service
@@ -168,6 +167,8 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
         securitySecrets: toolCreationData.securitySecrets,
         isVerified: toolCreationData.isVerified === undefined ? false : toolCreationData.isVerified,
         creatorUserId: toolCreationData.creatorUserId,
+        // @ts-ignore - creatorOrganizationId is in the ApiTool type
+        creatorOrganizationId: toolCreationData.creatorOrganizationId,
         embedding: embedding, // Add the generated embedding
     };
 

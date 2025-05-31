@@ -3,7 +3,7 @@ import {
     ApiToolExecutionResponse,
     SuccessResponse,
     ErrorResponse,
-    AgentServiceCredentials,
+    AgentInternalCredentials,
     SetupNeeded,
 } from '@agent-base/types';
 import axios from 'axios';
@@ -27,7 +27,7 @@ import { recordApiToolExecution } from './databaseService.js';
  * @returns {Promise<ApiToolExecutionResponse>} The result of the execution (Success, Error, or SetupNeeded).
  */
 export const handleExecution = async (
-    agentServiceCredentials: AgentServiceCredentials,
+    agentServiceCredentials: AgentInternalCredentials,
     apiTool: ApiTool,
     conversationId: string,
     params: Record<string, any>,
@@ -54,6 +54,7 @@ export const handleExecution = async (
                 await recordApiToolExecution({
                     apiToolId: apiTool.id,
                     userId: agentServiceCredentials.clientUserId, 
+                    organizationId: agentServiceCredentials.clientOrganizationId,
                     input: executionOutcome.input,
                     output: executionOutcome.output,
                     statusCode: executionOutcome.status_code!,
@@ -88,6 +89,7 @@ export const handleExecution = async (
                 await recordApiToolExecution({
                     apiToolId: apiTool.id,
                     userId: agentServiceCredentials.clientUserId,
+                    organizationId: agentServiceCredentials.clientOrganizationId,
                     input: executionOutcome.input || params, 
                     output: executionOutcome.output,
                     statusCode: executionOutcome.status_code!, 
@@ -174,6 +176,7 @@ export const handleExecution = async (
         await recordApiToolExecution({
             apiToolId: apiTool.id,
             userId: agentServiceCredentials.clientUserId,
+            organizationId: agentServiceCredentials.clientOrganizationId,
             input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set
             output: executionOutcome.output,
             statusCode: executionOutcome.status_code!, // Should be set in success or catch block

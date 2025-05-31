@@ -1,6 +1,6 @@
 import { getBasicAuthCredentialKeys } from "./utils.js";
 import { ApiToolExecutionData, ApiToolStatus, SetupNeeded, SuccessResponse, UserType } from "@agent-base/types";
-import { ApiToolExecutionResponse, UtilityInputSecret, AgentServiceCredentials } from "@agent-base/types";
+import { ApiToolExecutionResponse, UtilityInputSecret, AgentInternalCredentials } from "@agent-base/types";
 import { generateSecretManagerId } from "@agent-base/secret-client";
 import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateUserApiToolStatus } from "./databaseService.js";
 import { gsmClient } from "../index.js";
@@ -11,26 +11,26 @@ import { handleExecution } from "./executionService.js";
 /**
  * Main service function to execute an API tool.
  * Loads the tool configuration, checks for required secrets, and then delegates execution.
- * @param {AgentServiceCredentials} agentServiceCredentials Credentials for the agent.
+ * @param {AgentInternalCredentials} agentServiceCredentials Credentials for the agent.
  * @param {string} toolId The ID of the tool to execute.
  * @param {string} conversationId The ID of the current conversation.
  * @param {Record<string, any>} params The input parameters for the tool.
  * @returns {Promise<ApiToolExecutionResponse>} The result of the tool execution.
  */
 export const runToolExecution = async (
-    agentServiceCredentials: AgentServiceCredentials,
+    agentServiceCredentials: AgentInternalCredentials,
     toolId: string,
     conversationId: string,
     params: Record<string, any>
 ): Promise<ApiToolExecutionResponse> => {
-    const { clientUserId } = agentServiceCredentials; 
+    const { clientUserId, clientOrganizationId } = agentServiceCredentials; 
     const logPrefix = `[UtilityService RunTool ${toolId}] User: ${clientUserId}`;
     console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
 
     try {
         // Ensure user-tool record exists, creating it with UNSET status if it's the first call.
         try {
-            await getOrCreateUserApiTool(clientUserId, toolId);
+            await getOrCreateUserApiTool(clientUserId, clientOrganizationId, toolId);
             console.log(`${logPrefix} Ensured UserApiTool record exists for user ${clientUserId}, tool ${toolId}.`);
         } catch (dbError) {
             // Log the error but don't let it block the main execution flow.
@@ -67,7 +67,7 @@ export const runToolExecution = async (
                         missingSecretsDetails.push({ secretKeyInSpec: effectiveApiKeyNameForLog, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: `Enter API Key for ${effectiveApiKeyNameForLog}` });
                     } else {
                         console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${apiKeyType}' (for apiKey scheme '${apiKeySchemeName}')`);
-                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), apiKeyType);
+                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, clientOrganizationId, apiTool.utilityProvider.toString(), apiKeyType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for API Key '${apiKeySchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const secretValue = await gsmClient.getSecret(gsmSecretId);
@@ -91,7 +91,7 @@ export const runToolExecution = async (
                         missingSecretsDetails.push({ secretKeyInSpec: bearerSchemeName, secretType: UtilityInputSecret.API_SECRET_KEY, inputPrompt: 'Enter Bearer Token' });
                     } else {
                         console.log(`${logPrefix} Fetching UserID: '${clientUserId}', Provider: '${apiTool.utilityProvider}', Type: '${bearerTokenType}' (for bearer scheme '${bearerSchemeName}')`);
-                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), bearerTokenType);
+                        const gsmSecretId = generateSecretManagerId(UserType.Client, clientUserId, clientOrganizationId, apiTool.utilityProvider.toString(), bearerTokenType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Bearer scheme '${bearerSchemeName}' with ID: ${gsmSecretId}`);
                         try {
                             const tokenValue = await gsmClient.getSecret(gsmSecretId);
@@ -117,7 +117,7 @@ export const runToolExecution = async (
                         console.error(`${logPrefix} Misconfig: Basic auth for ${apiTool.id} lacks 'x-secret-username' in securitySecrets.`);
                         missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: UtilityInputSecret.USERNAME, inputPrompt: 'Enter Username' });
                     } else {
-                        const gsmUsernameSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), usernameSecretType);
+                        const gsmUsernameSecretId = generateSecretManagerId(UserType.Client, clientUserId, clientOrganizationId, apiTool.utilityProvider.toString(), usernameSecretType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Username with ID: ${gsmUsernameSecretId}`);
                         try {
                             usernameValue = await gsmClient.getSecret(gsmUsernameSecretId);
@@ -131,7 +131,7 @@ export const runToolExecution = async (
                     }
 
                     if (passwordSecretType) {
-                        const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, apiTool.utilityProvider.toString(), passwordSecretType);
+                        const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, clientOrganizationId, apiTool.utilityProvider.toString(), passwordSecretType);
                         console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Password with ID: ${gsmPasswordSecretId}`);
                         try {
                             passwordValue = (await gsmClient.getSecret(gsmPasswordSecretId)) || "";
@@ -180,6 +180,7 @@ export const runToolExecution = async (
             const executionOutcomeForDb: ApiToolExecutionData = {
                 apiToolId: apiTool.id,
                 userId: agentServiceCredentials.clientUserId,
+                organizationId: agentServiceCredentials.clientOrganizationId,
                 input: params, 
                 output: { success: true, data: setupNeededData }, 
                 statusCode: 200, 
@@ -206,7 +207,7 @@ export const runToolExecution = async (
             const successData = (result as SuccessResponse<any>).data;
             if (!(typeof successData === 'object' && successData !== null && 'needsSetup' in successData && successData.needsSetup === true)) {
                 try {
-                    await updateUserApiToolStatus(clientUserId, toolId, ApiToolStatus.ACTIVE);
+                    await updateUserApiToolStatus(clientUserId, clientOrganizationId, toolId, ApiToolStatus.ACTIVE);
                     console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
                 } catch (dbUpdateError) {
                     // Log error but don't let it fail the overall successful execution response.

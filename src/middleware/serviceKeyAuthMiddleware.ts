@@ -21,7 +21,6 @@ export const serviceKeyAuthMiddleware = (req: Request, res: Response, next: Next
     res.status(500).json({ success: false, error: 'Internal Server Error: Service API Key not configured.' });
     return;
   }
-  console.debug('✅request:', JSON.stringify(req.headers, null, 2));
 
   const authHeader = req.headers.authorization;
 

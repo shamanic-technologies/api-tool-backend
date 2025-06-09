@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import * as utilityService from '../services/utilityService.js';
-import { 
-    ApiToolExecutionResponse, 
+import {
+    ApiToolExecutionResponse,
     ExecuteToolPayload,
     SuccessResponse, // Added for explicit typing
-    HumanInternalCredentials
-} from '@agent-base/types'; 
+    HumanInternalCredentials,
+    SetupNeeded
+} from '@agent-base/types';
 // getAuthHeadersFromAgent is no longer needed here, it's handled by agentAuthMiddleware
 import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
 import { runToolExecution } from '../services/runToolService.js';
@@ -51,29 +52,25 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
         console.log(`[API Tool Service] Executing tool ${toolId} for conversationId: ${conversationId} by user: ${serviceCredentials.clientUserId}`);
         const result: ApiToolExecutionResponse = await runToolExecution(
             serviceCredentials as Required<HumanInternalCredentials>, // Cast to satisfy AgentServiceCredentials if platformUserId is the only diff
-            toolId, 
-            conversationId, 
+            toolId,
+            conversationId,
             params
         );
+        const executionResponse: SuccessResponse<ApiToolExecutionResponse> = {
+            success: true,
+            data: result,
+        }
 
-        if (result.success === true) {
-            const successResult = result as SuccessResponse<any>; 
-            const successData = successResult.data;
-
-            if (typeof successData === 'object' && successData !== null && 'needsSetup' in successData && successData.needsSetup === true) {
-                console.log(`[API Tool Service] Tool ${toolId} requires setup for user: ${serviceCredentials.clientUserId}.`);
-                successResult.data.hint = `Given the tool requires setup, then a form has been automatically displayed in the chat.
-                        For each required secret, the form display an input field with a title for the user to safely input the values.
-                        For each of those values, display a clickable link, opening a new tab, and short instructions for the user to retrive those values.
-                        Ask the user to notify you when the setup is complete, so you can execute the tool again.`
-                res.status(200).json(successResult); 
-            } else {
-                console.log(`[API Tool Service] Tool ${toolId} executed successfully for user: ${serviceCredentials.clientUserId}.`);
-                res.status(200).json(successResult); 
-            }
+        if (typeof result === 'object' && result !== null && 'needsSetup' in result && result.needsSetup === true) {
+            console.log(`[API Tool Service] Tool ${toolId} requires setup for user: ${serviceCredentials.clientUserId}.`);
+            executionResponse.hint = `Given the tool requires setup, then a form has been automatically displayed in the chat.
+                    For each required secret, the form display an input field with a title for the user to safely input the values.
+                    For each of those values, display a clickable link, opening a new tab, and short instructions for the user to retrive those values.
+                    Ask the user to notify you when the setup is complete, so you can execute the tool again.`
+            res.status(200).json(executionResponse);
         } else {
-            console.error(`[API Tool Service] Error executing tool ${toolId} for user: ${serviceCredentials.clientUserId}:`, (result as any).error);
-            res.status(400).json(result); 
+            console.log(`[API Tool Service] Tool ${toolId} executed successfully for user: ${serviceCredentials.clientUserId}.`);
+            res.status(200).json(executionResponse);
         }
 
     } catch (error) {

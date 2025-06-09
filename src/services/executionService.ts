@@ -1,10 +1,12 @@
 import {
     ApiTool,
-    ApiToolExecutionResponse,
     SuccessResponse,
     ErrorResponse,
     AgentInternalCredentials,
     SetupNeeded,
+    // @ts-ignore - For some reason, ApiToolExecutionResult is not recognized in the types package
+    ApiToolExecutionResult,
+    ServiceResponse,
 } from '@agent-base/types';
 import axios from 'axios';
 import { ApiToolExecutionRecord } from '../types/db.types.js';
@@ -24,7 +26,7 @@ import { recordApiToolExecution } from './databaseService.js';
  * @param {string} conversationId - The ID of the current conversation.
  * @param {Record<string, any>} params - The raw input parameters for the tool.
  * @param {Record<string, string>} resolvedSecrets - The resolved secrets for the tool.
- * @returns {Promise<ApiToolExecutionResponse>} The result of the execution (Success, Error, or SetupNeeded).
+ * @returns {Promise<ApiToolExecutionResult>} The result of the execution (Success, Error, or SetupNeeded).
  */
 export const handleExecution = async (
     agentServiceCredentials: AgentInternalCredentials,
@@ -32,24 +34,23 @@ export const handleExecution = async (
     conversationId: string,
     params: Record<string, any>,
     resolvedSecrets: Record<string, string>
-): Promise<ApiToolExecutionResponse> => {
+): Promise<ServiceResponse<ApiToolExecutionResult>> => {
     const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentServiceCredentials.clientUserId}`;
     let executionOutcome: Partial<Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at' | 'api_tool_id' | 'user_id'>> = {};
-    let response: ApiToolExecutionResponse;
+    let validationResponseData: Record<string, any> | undefined;
 
     try {
         // 1. Validate Input Parameters (using validationService)
-        const validationResult = validateInputParameters(apiTool, params, logPrefix);
-        if ('success' in validationResult && !validationResult.success) {
-            console.log(`${logPrefix} Validation failed. Returning error response: ${JSON.stringify(validationResult,null,2)}`);
+        const validationResponse : ServiceResponse<Record<string, any>> = validateInputParameters(apiTool, params, logPrefix);
+        if (!validationResponse.success) {
+            console.log(`${logPrefix} Validation failed. Returning error response: ${JSON.stringify(validationResponse,null,2)}`);
             executionOutcome = {
                 input: params,
-                output: validationResult,
-                status_code: 400, // Or a more specific status code
-                error: validationResult.error,
-                error_details: JSON.stringify(validationResult.details)
+                status_code: validationResponse.statusCode, // Or a more specific status code
+                error: validationResponse.error,
+                error_details: JSON.stringify(validationResponse.details),
+                hint: validationResponse.hint,
             };
-            response = validationResult;
             try {
                 await recordApiToolExecution({
                     apiToolId: apiTool.id,
@@ -64,26 +65,25 @@ export const handleExecution = async (
             } catch (dbLogError) {
                 console.error(`${logPrefix} FAILED to record VALIDATION FAILURE to DB:`, dbLogError);
             }
-            return response;
+            return validationResponse;
         }
-        const validatedParams = (validationResult as { validatedParams: Record<string, any> }).validatedParams;
-        executionOutcome.input = validatedParams; // Log validated params for subsequent logging attempts
+        validationResponseData = validationResponse.data;
+        executionOutcome.input = validationResponseData; // Log validated params for subsequent logging attempts
 
         // 2. Check Prerequisites (using prerequisiteService)
-        const prereqResult = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
-        if (!prereqResult.prerequisitesMet) {
-            const setupResponse = prereqResult.setupNeededResponse! as SuccessResponse<SetupNeeded>; 
-            const hintFromData = (setupResponse.data as any)?.hint;
+        const prereqResult : { setupNeeded?: SetupNeeded; credentials?: Record<string, string | null> } = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
+        if (prereqResult.setupNeeded?.needsSetup) {
+            const setupNeededData = prereqResult.setupNeeded; 
+            // @ts-ignore - hint is not recognised in the SetupNeeded type
+            const hintFromData = setupNeededData?.hint;
 
             executionOutcome = {
                 ...executionOutcome, 
-                output: setupResponse, // This is the full SuccessResponse<SetupNeeded>
+                output: setupNeededData, // This is the full SuccessResponse<SetupNeeded>
                 status_code: 200, // SetupNeeded is a successful response indicating next steps
-                error: 'Prerequisites not met, setup needed.', 
-                error_details: JSON.stringify(setupResponse.data), // Log the SetupNeeded object itself
                 hint: hintFromData // Use the hint extracted from setupResponse.data
             };
-            response = setupResponse; // This is what gets sent to client
+            validationResponseData = setupNeededData; // This is what gets sent to client
             
             try {
                 await recordApiToolExecution({
@@ -93,32 +93,35 @@ export const handleExecution = async (
                     input: executionOutcome.input || params, 
                     output: executionOutcome.output,
                     statusCode: executionOutcome.status_code!, 
-                    error: executionOutcome.error,
-                    errorDetails: executionOutcome.error_details,
                     hint: executionOutcome.hint,
                 });
             } catch (dbLogError) {
                 console.error(`${logPrefix} FAILED to record PREREQUISITE FAILURE (Setup Needed) to DB:`, dbLogError);
             }
-            return response;
+            return { success: true, data: validationResponseData };
         }
-        const credentials = prereqResult.credentials!;
+        const credentials = prereqResult.credentials;
 
         // 3. Execute API Call (using apiCallService)
-        console.log(`${logPrefix} Prerequisites met. Proceeding with API call.`);
-        const apiResult = await makeApiCall(apiTool, validatedParams, credentials, logPrefix);
+        if (credentials) {
+            console.log(`${logPrefix} Prerequisites met. Proceeding with API call.`);
+            const apiCallResponse : ServiceResponse<ApiToolExecutionResult> = await makeApiCall(apiTool, validationResponseData, credentials, logPrefix);
+            if (!apiCallResponse.success) {
+                return apiCallResponse;
+            }
 
-        // 4. Format and Return Success Response
-        const successResponse: SuccessResponse<unknown> = {
-            success: true,
-            data: apiResult
-        };
-        executionOutcome = {
-            ...executionOutcome,
-            output: successResponse,
-            status_code: 200, // Assuming 200 for success
-        };
-        response = successResponse;
+            // 4. Format and Return Success Response
+            executionOutcome = {
+                ...executionOutcome,
+                output: apiCallResponse,
+                status_code: 200, // Assuming 200 for success
+            };
+            validationResponseData = apiCallResponse.data;
+
+        } else {
+            console.error(`${logPrefix} No validation response data to proceed with API call.`);
+            return { success: false, error: 'No validation response data to proceed with API call.' };
+        }
 
     } catch (error) {
         console.error(`${logPrefix} Error during execution handling:`, error);
@@ -167,7 +170,7 @@ export const handleExecution = async (
             error: errorResponse.error,
             error_details: JSON.stringify(errorResponse.details)
         };
-        response = errorResponse;
+        validationResponseData = errorResponse;
         console.log(`${logPrefix} Returning error response from handleExecution:`, errorResponse);
     }
 
@@ -188,5 +191,5 @@ export const handleExecution = async (
         console.error(`${logPrefix} FAILED to record FINAL execution outcome to database:`, dbError);
     }
 
-    return response;
+    return { success: true, data: validationResponseData as ApiToolExecutionResult };
 }; 

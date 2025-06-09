@@ -31,7 +31,7 @@ router.get('/user-tool-executions', agentAuthMiddleware, getUserToolExecutionsCo
 // Protected by serviceKeyAuthMiddleware (applied above)
 router.get('/:id', getToolInfoController.getToolInfo);
 
-// POST /api/tools - Create a new tool configuration
+// POST /api/tools - Create a new tool
 // Protected by serviceKeyAuthMiddleware (applied above) and agentAuthMiddleware
 router.post('/', agentAuthMiddleware, createToolController.createTool);
 

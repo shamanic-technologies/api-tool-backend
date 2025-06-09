@@ -1,8 +1,9 @@
 import { Ajv, ErrorObject } from 'ajv';
 import addFormatsRaw from 'ajv-formats';
-import { ApiTool, ErrorResponse } from '@agent-base/types'; // Updated import
+import { ApiTool, ErrorResponse, ServiceResponse } from '@agent-base/types'; // Updated import
 import { JSONSchema7 } from 'json-schema';
 import { deriveSchemaFromOperation, getOperation } from './utils.js'; // Ensure this import is present
+import { OperationObject } from 'openapi3-ts/oas30';
 
 // Initialize AJV
 const ajv = new Ajv({ allErrors: true });
@@ -19,10 +20,10 @@ export const validateInputParameters = (
     apiTool: ApiTool, // Updated parameter type
     params: Record<string, any>,
     logPrefix: string
-): { validatedParams: Record<string, any> } | ErrorResponse => {
+): ServiceResponse<Record<string, any>> => {
     try {
         // Corrected logic: First get operation, then derive schema
-        const operation = getOperation(apiTool.openapiSpecification, logPrefix);
+        const operation : OperationObject | null = getOperation(apiTool.openapiSpecification, logPrefix);
         if (!operation) {
             console.error(`${logPrefix} Could not extract a single operation from ApiTool openapiSpecification.`);
             return {
@@ -32,7 +33,7 @@ export const validateInputParameters = (
             };
         }
 
-        const schemaToValidate = deriveSchemaFromOperation(operation, apiTool.openapiSpecification, logPrefix);
+        const schemaToValidate : JSONSchema7 | null = deriveSchemaFromOperation(operation, apiTool.openapiSpecification, logPrefix);
 
         if (!schemaToValidate) {
             console.error(`${logPrefix} Failed to derive a JSON schema from the OpenAPI operation.`);
@@ -45,14 +46,14 @@ export const validateInputParameters = (
         
         if (Object.keys(schemaToValidate.properties || {}).length === 0 && (!params || Object.keys(params).length === 0)) {
             console.log(`${logPrefix} Tool takes no parameters or empty params provided for no-parameter tool. Validation passed.`);
-            return { validatedParams: {} };
+            return { success: true, data: {} };
         }
 
         const validate = ajv.compile(schemaToValidate);
 
         if (validate(params)) {
             console.log(`${logPrefix} Input parameters validated successfully against derived schema.`);
-            return { validatedParams: params };
+            return { success: true, data: params };
         } else {
             console.error(`${logPrefix} Input parameter validation failed against derived schema:`, validate.errors);
             const errorDetails = (validate.errors ?? []).map((e: ErrorObject) => ({ 

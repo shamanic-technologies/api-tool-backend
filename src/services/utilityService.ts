@@ -11,15 +11,10 @@ import {
     createApiTool,
     getApiToolById,
     getAllApiTools,
-    // addNewApiToolToDb, // This seems to be an alias or older name for createApiTool
-    // updateApiTool, // Assuming this is handled by a specific update function if needed
-    // deleteApiToolById // Assuming this is handled by a specific delete function if needed
 } from './databaseService.js';
 import {
     getOperation,
     deriveSchemaFromOperation,
-    // deriveToolNameFromOpenAPI, // Not found by linter
-    // validateSecuritySecretsAgainstScheme, // This is not exported from utils.ts
 } from './utils.js';
 import OpenAI from 'openai';
 import { OpenAPIObject } from 'openapi3-ts/oas30';
@@ -175,8 +170,8 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
     try {
         // Pass the complete data (including potential embedding) to createApiTool.
         // The createApiTool function in databaseService.ts is already prepared to handle this.
-        const createdToolRecord = await createApiTool(toolDataForDb);
-        return createdToolRecord;
+        const createdTool: ApiTool = await createApiTool(toolDataForDb);
+        return createdTool;
     } catch (error) {
         console.error('Error in addNewTool service:', error);
         // Rethrow or handle as specific error type if preferred

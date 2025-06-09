@@ -1,8 +1,11 @@
 import axios, { AxiosRequestConfig, Method } from 'axios';
 import { Buffer } from 'buffer';
-import { ApiTool } from '@agent-base/types';
+import { ApiTool, ServiceResponse,  } from '@agent-base/types';
+// @ts-ignore - For some reason, ApiToolExecutionResult is not recognized in the types package
+import { ApiToolExecutionResult } from '@agent-base/types';
 import { 
     ParameterObject, 
+    OperationObject,
     RequestBodyObject, 
     SchemaObject, 
     ReferenceObject,
@@ -24,9 +27,9 @@ export const makeApiCall = async (
     validatedParams: Record<string, any>,
     credentials: Record<string, string | null>, 
     logPrefix: string
-): Promise<any> => {
+): Promise<ServiceResponse<ApiToolExecutionResult>> => {
     const openapiSpec = apiTool.openapiSpecification;
-    const operation = getOperation(openapiSpec, logPrefix);
+    const operation : OperationObject | null = getOperation(openapiSpec, logPrefix);
 
     if (!operation) {
         throw new Error(`${logPrefix} Could not determine operation from OpenAPI spec.`);
@@ -262,7 +265,11 @@ export const makeApiCall = async (
     try {
         const response = await axios(requestConfig);
         console.log(`${logPrefix} API response status: ${response.status}`);
-        return response.data;
+        const apiCallResponse : ApiToolExecutionResult = {
+            success: true,
+            data: response.data,
+        };
+        return apiCallResponse;
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error(`${logPrefix} Axios error making API call: Status ${error.response?.status}, URL: ${error.config?.url}, Response Data:`, error.response?.data);

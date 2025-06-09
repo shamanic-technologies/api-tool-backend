@@ -1,12 +1,19 @@
 import { getBasicAuthCredentialKeys } from "./utils.js";
-import { ApiToolExecutionData, ApiToolStatus, SetupNeeded, SuccessResponse, UserType } from "@agent-base/types";
-import { ApiToolExecutionResponse, UtilityInputSecret, AgentInternalCredentials } from "@agent-base/types";
+import { ApiToolExecutionData, 
+    ApiToolStatus, 
+    SetupNeeded, 
+    UserType, 
+    UtilityInputSecret, 
+    AgentInternalCredentials, 
+    ServiceResponse, 
+    // @ts-ignore - ApiToolExecutionResult is not recognised in the types package
+    ApiToolExecutionResult
+} from "@agent-base/types";
 import { generateSecretManagerId } from "@agent-base/secret-client";
 import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateUserApiToolStatus } from "./databaseService.js";
 import { gsmClient } from "../index.js";
 import { getCredentialKeyForScheme } from "./utils.js";
 import { handleExecution } from "./executionService.js";
-
 
 /**
  * Main service function to execute an API tool.
@@ -15,14 +22,14 @@ import { handleExecution } from "./executionService.js";
  * @param {string} toolId The ID of the tool to execute.
  * @param {string} conversationId The ID of the current conversation.
  * @param {Record<string, any>} params The input parameters for the tool.
- * @returns {Promise<ApiToolExecutionResponse>} The result of the tool execution.
+ * @returns {Promise<ApiToolExecutionResult>} The result of the tool execution.
  */
 export const runToolExecution = async (
     agentServiceCredentials: AgentInternalCredentials,
     toolId: string,
     conversationId: string,
     params: Record<string, any>
-): Promise<ApiToolExecutionResponse> => {
+): Promise<ServiceResponse<ApiToolExecutionResult>> => {
     const { clientUserId, clientOrganizationId } = agentServiceCredentials; 
     const logPrefix = `[UtilityService RunTool ${toolId}] User: ${clientUserId}`;
     console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
@@ -169,7 +176,8 @@ export const runToolExecution = async (
             const requiredStandardSecrets = uniqueMissingDetails.map(d => d.secretType);
 
             const setupNeededData: SetupNeeded = {
-                needsSetup: true, utilityProvider: apiTool.utilityProvider,
+                needsSetup: true,
+                utilityProvider: apiTool.utilityProvider,
                 title: `Config Required: ${apiTool.openapiSpecification.info.title}`,
                 description: `To use '${apiTool.openapiSpecification.info.title}', provide: ${uniqueMissingDetails.map(d=>d.inputPrompt).join(', ')}. Securely stored.`,
                 message: `Setup for ${apiTool.openapiSpecification.info.title}.`,
@@ -195,27 +203,24 @@ export const runToolExecution = async (
                 console.error(`${logPrefix} FAILED to record SETUP NEEDED to DB from utilityService:`, dbLogError);
             }
 
-            return { success: true, data: setupNeededData };
+            return { success: true, data: setupNeededData as ApiToolExecutionResult };
         }
 
         console.log(`${logPrefix} All required secrets found for ${apiTool.id}. Delegating to handleExecution...`);
-        const result = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
+        const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
 
         // After successful execution (not an error, not a setup needed response)
-        if (result.success === true) {
-            // Check if result.data is not SetupNeeded
-            const successData = (result as SuccessResponse<any>).data;
-            if (!(typeof successData === 'object' && successData !== null && 'needsSetup' in successData && successData.needsSetup === true)) {
-                try {
-                    await updateUserApiToolStatus(clientUserId, clientOrganizationId, toolId, ApiToolStatus.ACTIVE);
-                    console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
-                } catch (dbUpdateError) {
-                    // Log error but don't let it fail the overall successful execution response.
-                    console.error(`${logPrefix} Failed to update UserApiTool status to ACTIVE, but tool execution was successful:`, dbUpdateError);
-                }
+        // Check if result.data is not SetupNeeded
+        if (!(typeof result === 'object' && result !== null && 'needsSetup' in result && result.needsSetup === true)) {
+            try {
+                await updateUserApiToolStatus(clientUserId, clientOrganizationId, toolId, ApiToolStatus.ACTIVE);
+                console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
+            } catch (dbUpdateError) {
+                // Log error but don't let it fail the overall successful execution response.
+                console.error(`${logPrefix} Failed to update UserApiTool status to ACTIVE, but tool execution was successful:`, dbUpdateError);
             }
         }
-        
+    
         return result;
 
     } catch (error) {

@@ -1,89 +1,10 @@
 import { query } from '../lib/db.js'; // Removed .js extension
-import { ApiToolRecord, ApiToolExecutionRecord, UserApiToolRecord } from '../types/db.types.js'; // Removed .js extension, Added ApiToolExecution and UserApiTool
+import { mapRowToApiTool, mapRowToUserApiTool, mapRowToApiToolExecution } from '../types/db.types.js'; // Removed .js extension, Added ApiToolExecution and UserApiTool
 import { ApiTool, ApiToolData, ApiToolExecution, ApiToolExecutionData, ApiToolStatus, UserApiTool } from '@agent-base/types'; // Import ApiToolStatus directly
 import { Pool, QueryResult } from 'pg'; // Example: using pg
 
-/**
- * @file Database Service
- * @description Handles all database interactions for API tools, user API tools, and executions.
- * Replaces the previous JSON file-based mock database.
- */
 
-// Helper function to map database row to ApiToolRecord (handles potential snake_case to camelCase if any)
-// For now, field names in db.types.ts mostly match, but this is good practice.
-const mapRowToApiTool = (row: any): ApiTool => {
-    return {
-        id: row.id,
-        name: row.name,
-        description: row.description,
-        utilityProvider: row.utility_provider,
-        openapiSpecification: row.openapi_specification,
-        securityOption: row.security_option,
-        securitySecrets: row.security_secrets,
-        isVerified: row.is_verified,
-        creatorUserId: row.creator_user_id,
-        // @ts-ignore - creatorOrganizationId is in the ApiTool type
-        creatorOrganizationId: row.creator_organization_id,
-        embedding: row.embedding,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-    };
-};
 
-/**
- * Helper function to map a database row to an ApiToolExecution object.
- * Handles parsing of JSON string fields (input, output) and Date conversions.
- * @param {any} row - The database row.
- * @returns {ApiToolExecutionRecord} The mapped ApiToolExecution object.
- */
-const mapRowToApiToolExecution = (row: any): ApiToolExecution => {
-    let parsedInput = row.input;
-    if (typeof row.input === 'string') {
-        try {
-            parsedInput = JSON.parse(row.input);
-        } catch (e) {
-            console.warn('Failed to parse input JSON string from DB:', e);
-            // Keep as string if parsing fails, or handle as an error
-        }
-    }
-
-    let parsedOutput = row.output;
-    if (typeof row.output === 'string') {
-        try {
-            parsedOutput = JSON.parse(row.output);
-        } catch (e) {
-            console.warn('Failed to parse output JSON string from DB:', e);
-             // Keep as string if parsing fails, or handle as an error
-        }
-    }
-
-    return {
-        id: row.id,
-        apiToolId: row.api_tool_id,
-        userId: row.user_id,
-        organizationId: row.organization_id,
-        input: parsedInput,
-        output: parsedOutput,
-        statusCode: row.status_code,
-        error: row.error,
-        errorDetails: row.error_details,
-        hint: row.hint,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-    };
-};
-
-// Corrected helper function to map database row to UserApiToolRecord
-const mapRowToUserApiTool = (row: any): UserApiTool => {
-    return {
-        userId: row.user_id,
-        organizationId: row.organization_id,
-        apiToolId: row.api_tool_id,
-        status: row.status as ApiToolStatus, // Ensure this matches the enum values, e.g., 'unset', 'active'
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-    };
-};
 
 // Configure your database connection pool
 // This is an example and should be configured according to your setup
@@ -138,7 +59,7 @@ export const createApiTool = async (
             isVerified,
             creatorUserId,
             creatorOrganizationId,
-            embedding ? embedding : null,
+            embedding,
         ];
         const result = await query(sql, params);
         if (result.rows.length === 0) {
@@ -259,32 +180,13 @@ export const deleteApiTool = async (id: string): Promise<boolean> => {
     }
 };
 
-// --- Placeholder functions for UserApiTool ---
-// TODO: Implement these based on requirements
 
-/**
- * Associates a user with an API tool.
- * @param {string} userId
- * @param {string} apiToolId
- * @param {ApiToolStatus} status
- * @returns {Promise<UserApiTool>}
- */
-// export const addUserApiTool = async (userId, apiToolId, status) => { /* ... */ };
 
-/**
- * Retrieves API tools associated with a user.
- * @param {string} userId
- * @returns {Promise<UserApiTool[]>}
- */
-// export const getUserApiTools = async (userId) => { /* ... */ };
-
-// --- Placeholder functions for ApiToolExecution ---
-// TODO: Implement these based on requirements
 
 /**
  * Records a single API tool execution event into the database.
- * @param {Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at'>} executionData - Data for the execution.
- * @returns {Promise<ApiToolExecutionRecord>} The created execution record.
+ * @param {Omit<ApiToolExecutionData, 'id' | 'created_at' | 'updated_at'>} executionData - Data for the execution.
+ * @returns {Promise<ApiToolExecution>} The created execution record.
  */
 export const recordApiToolExecution = async (
     executionData: ApiToolExecutionData
@@ -327,7 +229,7 @@ export const recordApiToolExecution = async (
 /**
  * Retrieves all API tool execution records for a specific user.
  * @param {string} userId - The ID of the user whose executions are to be retrieved.
- * @returns {Promise<ApiToolExecutionRecord[]>} A list of execution records.
+ * @returns {Promise<ApiToolExecution[]>} A list of execution records.
  */
 export const getToolExecutionsByUserId = async (userId: string, organizationId: string): Promise<ApiToolExecution[]> => {
     const sql = `

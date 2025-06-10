@@ -84,12 +84,15 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
 
     if (!humanInternalCredentials || !humanInternalCredentials.clientUserId) {
         console.warn('[API Tool Service] createTool called without valid serviceCredentials or clientUserId.');
-        res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
+        res.status(401).json({ 
+            success: false, 
+            error: 'Unauthorized: User ID is missing or invalid from service credentials.',
+            hint: "This error shouldn't happen. Please contact support."
+        });
         return;
     }
     const creatorUserId = humanInternalCredentials.clientUserId;
     const creatorOrganizationId = humanInternalCredentials.clientOrganizationId;
-    console.log(`[API Tool Service] Attempting to create tool for user: ${creatorUserId}`);
 
     try {
         const requestBody = req.body;
@@ -97,7 +100,12 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
 
         if (!requestBody) {
             validationErrors.push('Request body is empty.');
-            res.status(400).json({ success: false, error: 'Request body is empty.', details: validationErrors });
+            res.status(400).json({ 
+                success: false, 
+                error: 'Request body is empty.', 
+                details: validationErrors,
+                hint: "Add a body to your request."
+            });
             return;
         }
 
@@ -225,7 +233,8 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             res.status(400).json({ 
                 success: false, 
                 error: 'Invalid tool configuration provided.',
-                details: validationErrors
+                details: validationErrors,
+                hint: "Please check the validation errors and try again."
             });
             return;
         }
@@ -249,7 +258,10 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
         res.status(201).json({ 
             success: true, 
             data: createdTool,
-            hint: `Now execute the tool using the execute_api_tool utility.`
+            hint: `Now execute the tool using the execute_api_tool utility.
+            The credentials you listed in the tool definition will be prompted through a secrure form, one by one, to the user in the current chat.
+            The credentials will be stored in a secure way (Google Secret Manager) and will be used to execute the tool in the backend.
+            You must never ask the user to provide the crendentials to you in the chat for security reason. `
         });
 
     } catch (error) {

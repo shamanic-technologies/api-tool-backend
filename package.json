@@ -17,7 +17,8 @@
     "clean": "rm -rf dist node_modules",
     "migrate:create": "pnpm exec node-pg-migrate create",
     "migrate:up": "pnpm exec node-pg-migrate up",
-    "migrate:down": "pnpm exec node-pg-migrate down"
+    "migrate:down": "pnpm exec node-pg-migrate down",
+    "db:clear": "dotenv -- sh -c 'psql \"$DATABASE_URL\" -c \"TRUNCATE TABLE api_tools, user_api_tools, api_tool_executions CASCADE;\"'"
   },
   "dependencies": {
     "ajv": "^8.17.1",

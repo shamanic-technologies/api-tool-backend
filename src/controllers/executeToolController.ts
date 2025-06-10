@@ -1,11 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import * as utilityService from '../services/utilityService.js';
 import {
-    ApiToolExecutionResponse,
+    // @ts-ignore type exist but not recognized for unknown reason
+    ApiToolExecutionResult,
     ExecuteToolPayload,
     SuccessResponse, // Added for explicit typing
     HumanInternalCredentials,
-    SetupNeeded
+    SetupNeeded,
+    ServiceResponse
 } from '@agent-base/types';
 // getAuthHeadersFromAgent is no longer needed here, it's handled by agentAuthMiddleware
 import { AuthenticatedRequestWithAgent } from '../middleware/agentAuthMiddleware.js'; // Import the interface
@@ -23,14 +25,16 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
     // Cast req to AuthenticatedRequestWithAgent to access serviceCredentials
     const authenticatedReq = req as AuthenticatedRequestWithAgent;
     const serviceCredentials = authenticatedReq.humanInternalCredentials;
-
-    console.log(`[API Tool Service] Attempting to execute tool ID: ${toolId} by user: ${serviceCredentials.clientUserId}`);
     
     try {
         // Ensure serviceCredentials exist (should be guaranteed by middleware, but good for robustness)
         if (!serviceCredentials) {
             console.warn(`[API Tool Service] executeTool called without serviceCredentials. This should have been caught by middleware.`);
-            res.status(401).json({ success: false, error: 'Unauthorized: Missing service credentials.' });
+            res.status(401).json({ 
+                success: false, 
+                error: 'Unauthorized: Missing service credentials.',
+                hint: "This error shouldn't happen. Please contact support."
+            });
             return;
         }
 
@@ -38,39 +42,42 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
         
         if (!conversationId || !params) { 
             console.warn(`[API Tool Service] Missing required fields for tool ${toolId}: conversationId or params.`);
-            res.status(400).json({ success: false, error: 'Missing required fields in payload: conversationId, params' });
+            res.status(400).json({ 
+                success: false, 
+                error: 'Missing required fields in payload: conversationId, params',
+                hint: "This error shouldn't happen. Please contact support."
+            });
             return;
         }
 
         // Ensure platformUserId is a string, as expected by runToolExecution
         if (typeof serviceCredentials.platformUserId !== 'string') {
             console.error(`[API Tool Service] platformUserId is unexpectedly not a string in serviceCredentials for user: ${serviceCredentials.clientUserId}`);
-            res.status(500).json({ success: false, error: 'Internal server error: Invalid platform user ID in credentials.'});
+            res.status(500).json({ 
+                success: false, 
+                error: 'Internal server error: Invalid platform user ID in credentials.',
+                hint: "This error shouldn't happen. Please contact support."
+            });
             return;
         }
 
-        console.log(`[API Tool Service] Executing tool ${toolId} for conversationId: ${conversationId} by user: ${serviceCredentials.clientUserId}`);
-        const result: ApiToolExecutionResponse = await runToolExecution(
+        const toolExecutionResult: ServiceResponse<ApiToolExecutionResult> = await runToolExecution(
             serviceCredentials as Required<HumanInternalCredentials>, // Cast to satisfy AgentServiceCredentials if platformUserId is the only diff
             toolId,
             conversationId,
             params
         );
-        const executionResponse: SuccessResponse<ApiToolExecutionResponse> = {
-            success: true,
-            data: result,
-        }
 
-        if (typeof result === 'object' && result !== null && 'needsSetup' in result && result.needsSetup === true) {
-            console.log(`[API Tool Service] Tool ${toolId} requires setup for user: ${serviceCredentials.clientUserId}.`);
-            executionResponse.hint = `Given the tool requires setup, then a form has been automatically displayed in the chat.
-                    For each required secret, the form display an input field with a title for the user to safely input the values.
-                    For each of those values, display a clickable link, opening a new tab, and short instructions for the user to retrive those values.
-                    Ask the user to notify you when the setup is complete, so you can execute the tool again.`
-            res.status(200).json(executionResponse);
+        if (toolExecutionResult.success && toolExecutionResult.data && typeof toolExecutionResult.data === 'object' && toolExecutionResult.data !== null && 'needsSetup' in toolExecutionResult.data && toolExecutionResult.data.needsSetup === true) {
+            toolExecutionResult.hint = `Given the tool requires setup, then a form has been automatically displayed in the chat.
+                    For each required secret, the form display a safe input form with a title for the user to input the values.
+                    Values are stored in a secure way (Google Secret Manager) and will be used to execute the tool in the backend.
+                    For each of those secrets, display a short instructions (with a link) for the user to retrive those values in the external tool's dashboard.
+                    Ask the user to notify you when the setup is complete, so you can execute the tool again and check if it is working this time.`
+            res.status(200).json(toolExecutionResult);
         } else {
             console.log(`[API Tool Service] Tool ${toolId} executed successfully for user: ${serviceCredentials.clientUserId}.`);
-            res.status(200).json(executionResponse);
+            res.status(200).json(toolExecutionResult);
         }
 
     } catch (error) {

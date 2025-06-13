@@ -32,6 +32,7 @@ export const makeApiCall = async (
     const operation : OperationObject | null = getOperation(openapiSpec, logPrefix);
 
     if (!operation) {
+        console.error(`${logPrefix} Could not determine operation from OpenAPI spec.`);
         throw new Error(`${logPrefix} Could not determine operation from OpenAPI spec.`);
     }
 
@@ -48,6 +49,7 @@ export const makeApiCall = async (
     }
 
     if (!httpMethod) {
+        console.error(`${logPrefix} Could not determine HTTP method for the operation.`);
         throw new Error(`${logPrefix} Could not determine HTTP method for the operation.`);
     }
 
@@ -78,7 +80,7 @@ export const makeApiCall = async (
                          console.log(`${logPrefix} Replaced server variable '${placeholder}' with default value '${encodeURIComponent(defaultValue)}' in baseUrl.`);
                     } else {
                         // If no default and not in params, this could be an issue.
-                        console.warn(`${logPrefix} Server variable '${variableName}' not found in validatedParams and has no default value.`);
+                        console.error(`${logPrefix} Server variable '${variableName}' not found in validatedParams and has no default value.`);
                         // Depending on strictness, could throw an error here.
                         // throw new Error(`${logPrefix} Server variable '${variableName}' is required but not provided and has no default.`);
                     }
@@ -87,7 +89,7 @@ export const makeApiCall = async (
         }
     } else {
         // Fallback or error if no server is defined - this should be validated upfront ideally
-        console.warn(`${logPrefix} No servers defined in OpenAPI spec. Attempting to proceed without a base URL.`);
+        console.error(`${logPrefix} No servers defined in OpenAPI spec. Attempting to proceed without a base URL.`);
         // throw new Error(`${logPrefix} No servers defined in OpenAPI spec.`);
     }
 
@@ -250,7 +252,6 @@ export const makeApiCall = async (
         }
     }
 
-    console.log(`${logPrefix} Making API call: ${httpMethod.toUpperCase()} ${finalUrl}`);
     if(Object.keys(headers).length > 0) console.log(`${logPrefix} Headers:`, JSON.stringify(headers));
     if(Object.keys(queryParams).length > 0) console.log(`${logPrefix} Query Params:`, JSON.stringify(queryParams));
     if(requestBodyForCall !== undefined) console.log(`${logPrefix} Body:`, JSON.stringify(requestBodyForCall));
@@ -268,7 +269,6 @@ export const makeApiCall = async (
 
     try {
         const response = await axios(requestConfig);
-        console.log(`${logPrefix} API response status: ${response.status}`);
         const apiCallResponse : ApiToolExecutionResult = {
             success: true,
             data: response.data,

@@ -16,7 +16,6 @@ import { SearchApiToolResultItem, ApiToolStatus, UtilityProvider, SearchApiToolR
  */
 export const getUserApiTools = async (userId: string, organizationId: string): Promise<SearchApiToolResult> => {
     const logPrefix = `[ExecutionStatsService GetUserApiTools SingleQuery User: ${userId} in organization: ${organizationId}]`;
-    console.log(`${logPrefix} Retrieving and enriching tools for user.`);
 
     // Note: ApiToolStatus.DELETED is assumed to be the string 'deleted'.
     // For robustness, it would be better to pass ApiToolStatus.DELETED as a second parameter ($2)
@@ -85,8 +84,6 @@ export const getUserApiTools = async (userId: string, organizationId: string): P
                 updatedAt: new Date(row.userToolUpdatedAt), // User-tool link update date
             };
         });
-
-        console.log(`${logPrefix} Successfully fetched and mapped ${items.length} tools for user.`);
         
         // Wrap the items and total count in the SearchApiToolResult structure
         return {

@@ -185,7 +185,6 @@ export const deriveSchemaFromOperation = (operation: OperationObject, openapiSpe
     // In such a case, an empty schema `{type: 'object'}` is appropriate.
     if (Object.keys(combinedSchema.properties || {}).length === 0 && (combinedSchema.required || []).length === 0) {
         // Allow tools with no parameters to pass validation with empty input
-        console.log(`${logPrefix} Derived an empty schema; tool likely takes no input parameters or body fields (excluding server variables if any).`);
     }
 
     return combinedSchema;

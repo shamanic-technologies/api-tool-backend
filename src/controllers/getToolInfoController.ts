@@ -23,12 +23,12 @@ import {
  * @param {NextFunction} next Express next middleware function.
  */
 export const getToolInfo = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    console.log(`[API Tool Service] Getting tool info for ID: ${req.params.id}`);
     try {
         const toolId = req.params.id;
         // utilityService.getToolDetails now returns Promise<ApiToolInfo | null>
         const toolInfo = await utilityService.getToolDetails(toolId);
         if (!toolInfo) {
+            console.error(`[API Tool Service] Tool with ID '${toolId}' not found.`);
             res.status(404).json({ success: false, error: `Tool with ID '${toolId}' not found.` });
             return;
         }

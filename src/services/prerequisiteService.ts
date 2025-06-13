@@ -28,7 +28,6 @@ export const checkPrerequisites = async (
     credentials?: Record<string, string | null>;
 }> => {
     const logPrefix = `[PrerequisiteService ${apiTool.id}]`;
-    console.log(`${logPrefix} Checking prerequisites using pre-fetched resolvedSecrets...`);
 
     const operation : OperationObject | null = getOperation(apiTool.openapiSpecification, logPrefix);
     if (!operation) {
@@ -73,7 +72,6 @@ export const checkPrerequisites = async (
     };
     
     if ('$ref' in securitySchemeObject) {
-        console.error(`${logPrefix} Security scheme '${chosenSchemeName}' for ${apiTool.id} is a $ref. Not supported.`);
         return {
             setupNeeded: {
                 needsSetup: true,
@@ -107,11 +105,10 @@ export const checkPrerequisites = async (
 
             // Check if the raw API key is present in resolvedSecrets under the scheme name key
             if (resolvedSecrets[apiKeySchemeKey] && typeof resolvedSecrets[apiKeySchemeKey] === 'string') {
-                console.log(`${logPrefix} API Key (raw value for scheme '${chosenSchemeName}') found in resolvedSecrets under key '${apiKeySchemeKey}'.`);
                 // Pass the raw key to apiCallService, it will use securitySchemeObject.name and securitySchemeObject.in
                 fetchedCredentials[apiKeySchemeKey] = resolvedSecrets[apiKeySchemeKey];
             } else {
-                console.warn(`${logPrefix} API Key (raw value for scheme '${chosenSchemeName}', type: ${apiKeySecretType}) NOT found in resolvedSecrets under key '${apiKeySchemeKey}'.`);
+                console.error(`${logPrefix} API Key (raw value for scheme '${chosenSchemeName}', type: ${apiKeySecretType}) NOT found in resolvedSecrets under key '${apiKeySchemeKey}'.`);
                 allPrerequisitesMet = false;
                 missingSetupSecrets.push(apiKeySecretType as UtilityInputSecret);
             }
@@ -130,7 +127,6 @@ export const checkPrerequisites = async (
 
                 // Check if the raw bearer token is present in resolvedSecrets under the scheme name key
                 if (resolvedSecrets[bearerSchemeKey] && typeof resolvedSecrets[bearerSchemeKey] === 'string') {
-                    console.log(`${logPrefix} HTTP Bearer token (raw value for scheme '${chosenSchemeName}') found in resolvedSecrets under key '${bearerSchemeKey}'.`);
                     // Pass the raw token to apiCallService
                     fetchedCredentials[bearerSchemeKey] = resolvedSecrets[bearerSchemeKey];
                 } else {
@@ -153,7 +149,6 @@ export const checkPrerequisites = async (
 
                 // Check if the raw username component is present in resolvedSecrets
                 if (resolvedSecrets[basicAuthKeys.username] && typeof resolvedSecrets[basicAuthKeys.username] === 'string') {
-                    console.log(`${logPrefix} HTTP Basic username component found in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.username}'.`);
                     fetchedCredentials[basicAuthKeys.username] = resolvedSecrets[basicAuthKeys.username];
                     
                     // Handle password
@@ -162,11 +157,10 @@ export const checkPrerequisites = async (
                         if (passwordValue && typeof passwordValue === 'string' && passwordValue !== "") {
                             // Password key exists, is a string, AND is not an empty string
                             fetchedCredentials[basicAuthKeys.password] = passwordValue;
-                            console.log(`${logPrefix} HTTP Basic password component (type: ${passSecretType}) found and non-empty in resolvedSecrets.`);
                         } else {
                             // Password key is missing, not a string, OR its value is an empty string.
                             // Since passSecretType is defined, this means the required secret is missing or empty.
-                            console.warn(`${logPrefix} HTTP Basic password component (type: ${passSecretType}) configured but value is missing, not a string, or empty in resolvedSecrets.`);
+                            console.error(`${logPrefix} HTTP Basic password component (type: ${passSecretType}) configured but value is missing, not a string, or empty in resolvedSecrets.`);
                             allPrerequisitesMet = false;
                             missingSetupSecrets.push(passSecretType as UtilityInputSecret);
                             // Pass on the (potentially empty or null) value if it exists, apiCallService might handle it
@@ -176,10 +170,10 @@ export const checkPrerequisites = async (
                         // No password configured via passSecretType (x-secret-password was not in tool's securitySecrets)
                         // Treat as legitimately absent or optional. apiCallService defaults to empty string if missing or null.
                         fetchedCredentials[basicAuthKeys.password] = null; 
-                        console.log(`${logPrefix} HTTP Basic password component not configured via tool's securitySecrets.`);
+                        console.error(`${logPrefix} HTTP Basic password component not configured via tool's securitySecrets.`);
                     }
                 } else {
-                    console.warn(`${logPrefix} HTTP Basic username component (type: ${userSecretType}) NOT found in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.username}'.`);
+                    console.error(`${logPrefix} HTTP Basic username component (type: ${userSecretType}) NOT found in resolvedSecrets for scheme '${chosenSchemeName}' under key '${basicAuthKeys.username}'.`);
                     allPrerequisitesMet = false;
                     missingSetupSecrets.push(userSecretType as UtilityInputSecret);
                     if (passSecretType) { // If password was also expected
@@ -187,7 +181,7 @@ export const checkPrerequisites = async (
                     }
                 }
             } else {
-                console.warn(`${logPrefix} Unsupp. HTTP scheme for ${apiTool.id}: ${securitySchemeObject.scheme}`);
+                console.error(`${logPrefix} Unsupp. HTTP scheme for ${apiTool.id}: ${securitySchemeObject.scheme}`);
                 allPrerequisitesMet = false; // Or handle as a tool configuration error
             }
             break;
@@ -202,7 +196,7 @@ export const checkPrerequisites = async (
         //     break;
 
         default:
-            console.warn(`${logPrefix} Unsupp. security scheme type for ${apiTool.id}: ${securitySchemeObject.type}`);
+            console.error(`${logPrefix} Unsupp. security scheme type for ${apiTool.id}: ${securitySchemeObject.type}`);
             allPrerequisitesMet = false; // Or handle as a tool configuration error
     }
 
@@ -213,7 +207,7 @@ export const checkPrerequisites = async (
         const uniqueMissingSetupSecrets = Array.from(new Set(finalMissingSecrets));
         
         if (uniqueMissingSetupSecrets.length === 0) {
-            console.warn(`${logPrefix} Prereqs failed (misconfig?), but no specific secrets to request for ${apiTool.id}.`);
+            console.error(`${logPrefix} Prereqs failed (misconfig?), but no specific secrets to request for ${apiTool.id}.`);
              return {
                 setupNeeded: {
                     needsSetup: true,
@@ -241,6 +235,5 @@ export const checkPrerequisites = async (
         return { setupNeeded: setupNeededData };
     }
 
-    console.log(`${logPrefix} All prereqs met using resolvedSecrets for ${apiTool.id}.`);
     return { credentials: fetchedCredentials };
 }; 

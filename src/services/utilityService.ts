@@ -37,7 +37,7 @@ const generateOpenAIEmbedding = async (openapiSpec: OpenAPIObject): Promise<numb
     const logPrefix = '[UtilityService GenerateEmbedding]';
 
     if (!process.env.OPENAI_API_KEY) {
-        console.warn(`${logPrefix} OPENAI_API_KEY not found in environment variables. Skipping embedding generation.`);
+        console.error(`${logPrefix} OPENAI_API_KEY not found in environment variables. Skipping embedding generation.`);
         return undefined;
     }
 
@@ -54,7 +54,6 @@ const generateOpenAIEmbedding = async (openapiSpec: OpenAPIObject): Promise<numb
     }
 
     try {
-        console.log(`${logPrefix} Generating embedding for OpenAPI spec: ${openapiSpec.info.title}`);
         const inputString = JSON.stringify(openapiSpec);
         
         // At this point, openaiClient should be initialized if an API key was provided.
@@ -65,7 +64,6 @@ const generateOpenAIEmbedding = async (openapiSpec: OpenAPIObject): Promise<numb
         });
 
         if (response.data && response.data.length > 0 && response.data[0].embedding) {
-            console.log(`${logPrefix} Embedding generated successfully for: ${openapiSpec.info.title}`);
             return response.data[0].embedding;
         } else {
             console.error(`${logPrefix} Failed to generate embedding. No embedding data in response for: ${openapiSpec.info.title}`);
@@ -162,7 +160,6 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
         securitySecrets: toolCreationData.securitySecrets,
         isVerified: toolCreationData.isVerified === undefined ? false : toolCreationData.isVerified,
         creatorUserId: toolCreationData.creatorUserId,
-        // @ts-ignore - creatorOrganizationId is in the ApiTool type
         creatorOrganizationId: toolCreationData.creatorOrganizationId,
     };
 

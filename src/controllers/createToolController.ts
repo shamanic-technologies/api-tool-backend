@@ -269,7 +269,6 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             creatorOrganizationId: creatorOrganizationId,
         };
         
-        console.log(`[API Tool Service] Creating tool with validated data for user: ${creatorUserId}`);
         const createdTool = await utilityService.addNewTool(toolCreationData);
         
         res.status(201).json({ 

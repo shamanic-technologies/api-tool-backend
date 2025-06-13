@@ -17,14 +17,12 @@ export const getUserApiTools = async (req: Request, res: Response, next: NextFun
         const serviceCredentials = authenticatedReq.humanInternalCredentials;
 
         if (!serviceCredentials || !serviceCredentials.clientUserId || !serviceCredentials.clientOrganizationId) {
-            console.warn('[API Tool Service] getUserApiTools controller called without valid serviceCredentials or clientUserId.');
+            console.error('[API Tool Service] getUserApiTools controller called without valid serviceCredentials or clientUserId.');
             res.status(401).json({ success: false, error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
             return;
         }
         const requestingUserId = serviceCredentials.clientUserId;
         const requestingOrganizationId = serviceCredentials.clientOrganizationId;
-
-        console.log(`[API Tool Service] Controller: Getting API tools for user ID: ${requestingUserId}`);
         
         const searchApiToolResult: SearchApiToolResult = await executionStatsService.getUserApiTools(requestingUserId, requestingOrganizationId);
         

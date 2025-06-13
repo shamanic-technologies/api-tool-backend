@@ -33,7 +33,7 @@ export async function handleOauthCheck(apiTool: any, agentServiceCredentials: Ag
     };
 
     const credentials: AgentBaseCredentials = {
-        platformApiKey: process.env.INTERNAL_SECRET!,
+        platformApiKey: agentServiceCredentials.platformApiKey,
         clientAuthUserId: agentServiceCredentials.clientUserId,
         clientAuthOrganizationId: agentServiceCredentials.clientOrganizationId
     };

@@ -29,7 +29,7 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
     try {
         // Ensure serviceCredentials exist (should be guaranteed by middleware, but good for robustness)
         if (!serviceCredentials) {
-            console.warn(`[API Tool Service] executeTool called without serviceCredentials. This should have been caught by middleware.`);
+            console.error(`[API Tool Service] executeTool called without serviceCredentials. This should have been caught by middleware.`);
             res.status(401).json({ 
                 success: false, 
                 error: 'Unauthorized: Missing service credentials.',
@@ -41,7 +41,7 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
         const { conversationId, params } : ExecuteToolPayload = req.body;
         
         if (!conversationId || !params) { 
-            console.warn(`[API Tool Service] Missing required fields for tool ${toolId}: conversationId or params.`);
+            console.error(`[API Tool Service] Missing required fields for tool ${toolId}: conversationId or params.`);
             res.status(400).json({ 
                 success: false, 
                 error: 'Missing required fields in payload: conversationId, params',
@@ -76,7 +76,6 @@ export const executeTool = async (req: Request, res: Response, next: NextFunctio
                     Ask the user to notify you when the setup is complete, so you can execute the tool again and check if it is working this time.`
             res.status(200).json(toolExecutionResult);
         } else {
-            console.log(`[API Tool Service] Tool ${toolId} executed successfully for user: ${serviceCredentials.clientUserId}.`);
             res.status(200).json(toolExecutionResult);
         }
 

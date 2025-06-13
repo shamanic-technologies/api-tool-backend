@@ -17,14 +17,13 @@ export const getUserToolExecutions = async (req: Request, res: Response): Promis
     const serviceCredentials = authenticatedReq.humanInternalCredentials;
 
     if (!serviceCredentials || !serviceCredentials.clientUserId || !serviceCredentials.clientOrganizationId) {
-      console.warn('[CONTROLLER] getUserToolExecutions called without valid serviceCredentials or clientUserId.');
+      console.error('[CONTROLLER] getUserToolExecutions called without valid serviceCredentials or clientUserId.');
       res.status(401).json({ error: 'Unauthorized: User ID is missing or invalid from service credentials.' });
       return;
     }
     const userId = serviceCredentials.clientUserId;
     const organizationId = serviceCredentials.clientOrganizationId;
 
-    console.log(`[CONTROLLER] Fetching tool executions for user ID: ${userId}`);
     const executions: ApiToolExecution[] = await getToolExecutionsByUserId(userId, organizationId);
     
     res.status(200).json(executions);

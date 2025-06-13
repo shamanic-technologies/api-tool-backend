@@ -34,7 +34,6 @@ export const runToolExecution = async (
 ): Promise<ServiceResponse<ApiToolExecutionResult>> => {
     const { clientUserId, clientOrganizationId } = agentServiceCredentials; 
     const logPrefix = `[UtilityService RunTool ${toolId}] User: ${clientUserId}`;
-    console.log(`${logPrefix} Orchestrating execution with params:`, JSON.stringify(params));
 
     try {
         // Ensure user-tool record exists, creating it with UNSET status if it's the first call.
@@ -50,18 +49,19 @@ export const runToolExecution = async (
         const apiTool = await getApiToolById(toolId); 
 
         if (!apiTool) {
+            console.error(`${logPrefix} Tool config not found for ID '${toolId}'.`);
             return { success: false, error: `Tool config not found for ID '${toolId}'.` };
         }
 
         // --- OAuth Check ---
         const oauthCheckResult = await handleOauthCheck(apiTool, agentServiceCredentials);
         if (!oauthCheckResult.success) {
+            console.error(`${logPrefix} OAuth check failed for tool ${toolId}:`, oauthCheckResult.error);
             return oauthCheckResult;
         }
 
         // @ts-ignore - The data object will have either needsAuth or accessToken
         if (oauthCheckResult.data.needsAuth) {
-            // @ts-ignore
             return { success: true, data: oauthCheckResult.data };
         }
         
@@ -228,7 +228,6 @@ export const runToolExecution = async (
             return { success: true, data: setupNeededData as ApiToolExecutionResult };
         }
 
-        console.log(`${logPrefix} All required secrets found for ${apiTool.id}. Delegating to handleExecution...`);
         const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
 
         // After successful execution (not an error, not a setup needed response)

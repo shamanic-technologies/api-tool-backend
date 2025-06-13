@@ -45,14 +45,12 @@ export const validateInputParameters = (
         }
         
         if (Object.keys(schemaToValidate.properties || {}).length === 0 && (!params || Object.keys(params).length === 0)) {
-            console.log(`${logPrefix} Tool takes no parameters or empty params provided for no-parameter tool. Validation passed.`);
             return { success: true, data: {} };
         }
 
         const validate = ajv.compile(schemaToValidate);
 
         if (validate(params)) {
-            console.log(`${logPrefix} Input parameters validated successfully against derived schema.`);
             return { success: true, data: params };
         } else {
             console.error(`${logPrefix} Input parameter validation failed against derived schema:`, validate.errors);

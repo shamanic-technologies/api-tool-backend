@@ -1,5 +1,6 @@
 import { getBasicAuthCredentialKeys } from "./utils.js";
-import { ApiToolExecutionData, 
+import { 
+    ApiToolExecutionData, 
     ApiToolStatus, 
     SetupNeeded, 
     UserType, 
@@ -14,6 +15,7 @@ import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateU
 import { gsmClient } from "../index.js";
 import { getCredentialKeyForScheme } from "./utils.js";
 import { handleExecution } from "./executionService.js";
+import { handleOauthCheck } from './oauthService.js';
 
 /**
  * Main service function to execute an API tool.
@@ -51,12 +53,32 @@ export const runToolExecution = async (
             return { success: false, error: `Tool config not found for ID '${toolId}'.` };
         }
 
+        // --- OAuth Check ---
+        const oauthCheckResult = await handleOauthCheck(apiTool, agentServiceCredentials);
+        if (!oauthCheckResult.success) {
+            return oauthCheckResult;
+        }
+
+        // @ts-ignore - The data object will have either needsAuth or accessToken
+        if (oauthCheckResult.data.needsAuth) {
+            // @ts-ignore
+            return { success: true, data: oauthCheckResult.data };
+        }
+        
+        // @ts-ignore
+        const accessToken = oauthCheckResult.data.accessToken;
+
+
         // The rest of the logic uses fields available on apiToolRecord 
         // (e.g., apiToolRecord.security_option, apiToolRecord.openapi_specification)
         // So, direct usage of apiToolRecord should be fine here.
 
         const resolvedSecrets: Record<string, string> = {};
         const missingSecretsDetails: Array<{ secretKeyInSpec: string, secretType: UtilityInputSecret, inputPrompt: string }> = [];
+
+        if (accessToken) {
+            resolvedSecrets[getCredentialKeyForScheme(apiTool.securityOption)] = accessToken;
+        }
 
         if (apiTool.securityOption && apiTool.openapiSpecification.components?.securitySchemes) {
             const securityScheme = apiTool.openapiSpecification.components.securitySchemes[apiTool.securityOption];
@@ -230,4 +252,3 @@ export const runToolExecution = async (
         return { success: false, error: 'Tool execution orchestration failed.', details: error instanceof Error ? error.message : String(error) };
     }
 };
-

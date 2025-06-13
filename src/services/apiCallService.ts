@@ -241,7 +241,11 @@ export const makeApiCall = async (
                     headers['Authorization'] = `Basic ${Buffer.from(`${username}:${effectivePassword}`).toString('base64')}`;
                 }
                 break;
-            // OAuth2 would typically result in a bearer token, handled by http bearer or a specific credential if needed.
+            case 'oauth2':
+                if (credentialValue) { // credentialValue is the raw access token
+                    headers['Authorization'] = `Bearer ${credentialValue}`;
+                }
+                break;
             // OpenIDConnect also not handled here for brevity.
         }
     }

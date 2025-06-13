@@ -150,30 +150,8 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             validationErrors.push("Field 'id' should not be provided; it will be auto-generated.");
         }
 
-        const normalizedSecuritySecrets: any = {}; 
-        if (requestBody.securitySecrets && typeof requestBody.securitySecrets === 'object') {
-            const secretKeys: ("x-secret-name" | "x-secret-username" | "x-secret-password")[] = ["x-secret-name", "x-secret-username", "x-secret-password"];
-            const validSecretEnumValues = Object.values(UtilityInputSecret) as string[]; 
-
-            for (const key of secretKeys) { 
-                const secretValue = requestBody.securitySecrets[key]; 
-                if (secretValue !== undefined && secretValue !== null) { 
-                    if (typeof secretValue === 'string') {
-                        const lowercasedSecretValue = secretValue.toLowerCase();
-                        normalizedSecuritySecrets[key] = lowercasedSecretValue as UtilityInputSecret;
-                        if (!validSecretEnumValues.includes(lowercasedSecretValue)) {
-                            validationErrors.push(
-                                `Invalid value for securitySecrets.${key}: '${secretValue}'. Must be one of [${validSecretEnumValues.join(", ")}] (e.g., 'api_secret_key', 'username', 'password'). Check UtilityInputSecret enum.`
-                            );
-                        }
-                    } else {
-                        validationErrors.push(`Value for securitySecrets.${key} must be a string.`);
-                    } 
-                }
-            }
-        } else {
-            validationErrors.push('Missing or invalid required field: securitySecrets (must be an object).');
-        }
+        // Defer securitySecrets validation until after we know the security scheme type
+        const normalizedSecuritySecrets: any = {};
         
         if (!requestBody.openapiSpecification) {
             validationErrors.push('Missing required field: openapiSpecification');
@@ -182,31 +160,51 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
             validationErrors.push(...openApiErrors);
         }
 
+        // This block validates securityOption and securitySecrets together, but only if the OpenAPI spec itself is structurally valid.
         if (validationErrors.filter(e => e.startsWith('OpenAPI Spec Error:')).length === 0 && requestBody.openapiSpecification) {
             if (!requestBody.securityOption || typeof requestBody.securityOption !== 'string' || requestBody.securityOption.trim() === '') {
                 validationErrors.push('Missing or invalid required field: securityOption (must be a non-empty string).');
-            } else if (requestBody.openapiSpecification.components?.securitySchemes) {
-                if (!requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption]) {
-                    validationErrors.push(`securityOption '${requestBody.securityOption}' does not match any key in openapiSpecification.components.securitySchemes.`);
-                }
+            } else if (!requestBody.openapiSpecification.components?.securitySchemes) {
+                validationErrors.push('openapiSpecification.components.securitySchemes is missing, cannot validate securityOption.');
+            } else if (!requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption]) {
+                validationErrors.push(`securityOption '${requestBody.securityOption}' does not match any key in openapiSpecification.components.securitySchemes.`);
             } else {
-                 validationErrors.push('openapiSpecification.components.securitySchemes is missing, cannot validate securityOption.');
-            }
-
-            if (typeof requestBody.securitySecrets === 'object' && 
-                requestBody.openapiSpecification.components?.securitySchemes && 
-                requestBody.securityOption && 
-                requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption] &&
-                !(requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption] as any).$ref) {
-                
+                // At this point, securityOption is valid and points to a real scheme. Now validate secrets based on scheme type.
                 const chosenScheme = requestBody.openapiSpecification.components.securitySchemes[requestBody.securityOption] as import('openapi3-ts/oas30').SecuritySchemeObject;
+
+                // Normalize secrets first (if they exist)
+                if (requestBody.securitySecrets && typeof requestBody.securitySecrets === 'object') {
+                    const secretKeys: ("x-secret-name" | "x-secret-username" | "x-secret-password")[] = ["x-secret-name", "x-secret-username", "x-secret-password"];
+                    const validSecretEnumValues = Object.values(UtilityInputSecret) as string[]; 
+                    for (const key of secretKeys) { 
+                        const secretValue = requestBody.securitySecrets[key]; 
+                        if (secretValue !== undefined && secretValue !== null) { 
+                            if (typeof secretValue === 'string') {
+                                const lowercasedSecretValue = secretValue.toLowerCase();
+                                normalizedSecuritySecrets[key] = lowercasedSecretValue as UtilityInputSecret;
+                                if (!validSecretEnumValues.includes(lowercasedSecretValue)) {
+                                    validationErrors.push(`Invalid value for securitySecrets.${key}: '${secretValue}'. Must be one of [${validSecretEnumValues.join(", ")}].`);
+                                }
+                            } else {
+                                validationErrors.push(`Value for securitySecrets.${key} must be a string.`);
+                            } 
+                        }
+                    }
+                }
+
                 switch (chosenScheme.type) {
                     case 'apiKey':
+                        if (!requestBody.securitySecrets) {
+                            validationErrors.push('Missing required field: securitySecrets (must be an object).');
+                        }
                         if (!normalizedSecuritySecrets["x-secret-name"]) {
                             validationErrors.push(`For apiKey securityOption '${requestBody.securityOption}', securitySecrets must define 'x-secret-name'.`);
                         }
                         break;
                     case 'http':
+                        if (!requestBody.securitySecrets) {
+                            validationErrors.push('Missing required field: securitySecrets (must be an object).');
+                        }
                         if (chosenScheme.scheme === 'bearer') {
                             if (!normalizedSecuritySecrets["x-secret-name"]) {
                                 validationErrors.push(`For HTTP Bearer securityOption '${requestBody.securityOption}', securitySecrets must define 'x-secret-name'.`);
@@ -220,6 +218,25 @@ export const createTool = async (req: Request, res: Response, next: NextFunction
                             }
                         } else {
                             validationErrors.push(`Unsupported HTTP scheme '${chosenScheme.scheme}' for securityOption '${requestBody.securityOption}'.`);
+                        }
+                        break;
+                    case 'oauth2':
+                        if (!chosenScheme.flows || !chosenScheme.flows.authorizationCode) {
+                            validationErrors.push(`For oauth2 securityOption '${requestBody.securityOption}', the security scheme must define 'flows.authorizationCode'.`);
+                        } else {
+                            const flow = chosenScheme.flows.authorizationCode;
+                            if (!flow.authorizationUrl) {
+                                validationErrors.push(`oauth2 flow for '${requestBody.securityOption}' is missing required 'authorizationUrl'.`);
+                            }
+                            if (!flow.tokenUrl) {
+                                validationErrors.push(`oauth2 flow for '${requestBody.securityOption}' is missing required 'tokenUrl'.`);
+                            }
+                            if (!flow.scopes || typeof flow.scopes !== 'object' || Object.keys(flow.scopes).length === 0) {
+                                validationErrors.push(`oauth2 flow for '${requestBody.securityOption}' must define at least one scope in 'scopes'.`);
+                            }
+                        }
+                        if (requestBody.securitySecrets && Object.keys(requestBody.securitySecrets).length > 0) {
+                             validationErrors.push(`For oauth2 securityOption '${requestBody.securityOption}', 'securitySecrets' must not be provided or must be an empty object.`);
                         }
                         break;
                     default:

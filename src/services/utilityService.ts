@@ -164,13 +164,12 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
         creatorUserId: toolCreationData.creatorUserId,
         // @ts-ignore - creatorOrganizationId is in the ApiTool type
         creatorOrganizationId: toolCreationData.creatorOrganizationId,
-        embedding: embedding, // Add the generated embedding
     };
 
     try {
         // Pass the complete data (including potential embedding) to createApiTool.
         // The createApiTool function in databaseService.ts is already prepared to handle this.
-        const createdTool: ApiTool = await createApiTool(toolDataForDb);
+        const createdTool: ApiTool = await createApiTool(toolDataForDb, embedding as number[]);
         return createdTool;
     } catch (error) {
         console.error('Error in addNewTool service:', error);

@@ -1,10 +1,13 @@
+/// <reference types="node" />
+
 import { query } from '../lib/db.js'; // Removed .js extension
 import { mapRowToApiTool, mapRowToUserApiTool, mapRowToApiToolExecution } from '../types/db.types.js'; // Removed .js extension, Added ApiToolExecution and UserApiTool
 import { ApiTool, ApiToolData, ApiToolExecution, ApiToolExecutionData, ApiToolStatus, UserApiTool } from '@agent-base/types'; // Import ApiToolStatus directly
 import { Pool, QueryResult } from 'pg'; // Example: using pg
 
-
-
+export interface ApiToolRecordInput extends ApiToolData {
+    embedding?: number[];
+}
 
 // Configure your database connection pool
 // This is an example and should be configured according to your setup
@@ -24,7 +27,8 @@ const pool = new Pool({
  * @throws {Error} If the database operation fails.
  */
 export const createApiTool = async (
-    toolData: ApiToolData
+    toolData: ApiToolData,
+    embedding: number[]
 ): Promise<ApiTool> => {
     const {
         name,
@@ -37,7 +41,6 @@ export const createApiTool = async (
         creatorUserId,
         // @ts-ignore - creatorOrganizationId is in the ApiTool type
         creatorOrganizationId,
-        embedding,
     } = toolData;
 
     const sql = `

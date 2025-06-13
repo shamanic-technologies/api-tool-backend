@@ -273,7 +273,7 @@ export const makeApiCall = async (
             success: true,
             data: response.data,
         };
-        return apiCallResponse;
+        return apiCallResponse as ServiceResponse<ApiToolExecutionResult>;
     } catch (error) {
         if (axios.isAxiosError(error)) {
             console.error(`${logPrefix} Axios error making API call: Status ${error.response?.status}, URL: ${error.config?.url}, Response Data:`, error.response?.data);

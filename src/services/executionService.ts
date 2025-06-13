@@ -116,7 +116,7 @@ export const handleExecution = async (
                 output: apiCallResponse,
                 status_code: 200, // Assuming 200 for success
             };
-            validationResponseData = apiCallResponse.data;
+            validationResponseData = apiCallResponse.data as Record<string, any>;
 
         } else {
             console.error(`${logPrefix} No validation response data to proceed with API call.`);

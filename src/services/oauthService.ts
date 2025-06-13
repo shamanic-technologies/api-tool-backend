@@ -1,10 +1,12 @@
-import axios from 'axios';
 import {
     // @ts-ignore - This type exists but is not being recognized by the linter.
     ApiToolExecutionResult,
     AgentInternalCredentials,
     ServiceResponse,
+    AgentBaseCredentials,
+    GetUserOAuthInput,
 } from '@agent-base/types';
+import { checkAuthExternalApiService } from '@agent-base/api-client';
 
 const AGENT_BASE_API_URL = process.env.AGENT_BASE_API_URL;
 
@@ -23,34 +25,42 @@ export async function handleOauthCheck(apiTool: any, agentServiceCredentials: Ag
     const provider = apiTool.securityOption.replace('_oauth', '');
     const scopes = Object.keys(securityScheme.flows.authorizationCode.scopes);
 
-    try {
-        const authCheckResponse = await axios.post(`${AGENT_BASE_API_URL}/tool-auth/api/check-auth`, {
-            userId: agentServiceCredentials.clientUserId,
-            organizationId: agentServiceCredentials.clientOrganizationId,
-            oauthProvider: provider,
-            requiredScopes: scopes
-        });
+    const body: GetUserOAuthInput = {
+        userId: agentServiceCredentials.clientUserId,
+        organizationId: agentServiceCredentials.clientOrganizationId,
+        oauthProvider: provider,
+        requiredScopes: scopes
+    };
 
-        if (authCheckResponse.data?.data?.hasAuth === false) {
+    const credentials: AgentBaseCredentials = {
+        platformApiKey: process.env.INTERNAL_SECRET!,
+        clientAuthUserId: agentServiceCredentials.clientUserId,
+        clientAuthOrganizationId: agentServiceCredentials.clientOrganizationId
+    };
+
+    try {
+        const authCheckResponse = await checkAuthExternalApiService(body, credentials);
+
+        if (authCheckResponse.success === false) {
+            return authCheckResponse;
+        }
+
+        if (authCheckResponse.data.hasAuth === false) {
             return {
                 success: true,
                 // @ts-ignore - Casting to ApiToolExecutionResult as per user instruction.
                 data: {
                     needsAuth: true,
-                    authUrl: authCheckResponse.data.data.authUrl
-                }
-            };
-        } else if (authCheckResponse.data?.data?.hasAuth === true) {
-            return {
-                success: true,
-                data: {
-                    accessToken: authCheckResponse.data.data.oauthCredentials[0].accessToken
+                    authUrl: authCheckResponse.data.authUrl
                 }
             };
         } else {
-            // Handle unexpected response structure
-            console.error('[OAuth Service] Unexpected response structure from tool-auth service:', authCheckResponse.data);
-            return { success: false, error: 'Unexpected response from authentication service.' };
+            return {
+                success: true,
+                data: {
+                    accessToken: authCheckResponse.data.oauthCredentials[0].accessToken
+                }
+            };
         }
     } catch (error) {
         console.error('[OAuth Service] Error checking OAuth status:', error);

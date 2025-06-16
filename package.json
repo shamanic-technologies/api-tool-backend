@@ -33,9 +33,9 @@
     "swagger-parser": "^10.0.3"
   },
   "devDependencies": {
-    "@agent-base/api-client": "^0.50.0",
+    "@agent-base/api-client": "^0.54.0",
     "@agent-base/secret-client": "^0.15.0",
-    "@agent-base/types": "^0.51.0",
+    "@agent-base/types": "^0.52.0",
     "@eslint/js": "^9.27.0",
     "@types/express": "^5.0.2",
     "@types/json-schema": "^7.0.15",

@@ -3,14 +3,16 @@ import {
     ApiToolExecutionResult,
     AgentInternalCredentials,
     ServiceResponse,
-    AgentBaseCredentials,
     GetUserOAuthInput,
+    CheckUserOAuthResult,
+    CheckUserOAuthValidResult,
+    CheckUserOAuthInvalidResult,
 } from '@agent-base/types';
 import { checkAuthExternalApiService } from '@agent-base/api-client';
 
 const AGENT_BASE_API_URL = process.env.AGENT_BASE_API_URL;
 
-export async function handleOauthCheck(apiTool: any, agentServiceCredentials: AgentInternalCredentials): Promise<ServiceResponse<ApiToolExecutionResult | { accessToken: string }>> {
+export async function handleOauthCheck(apiTool: any, agentInternalCredentials: AgentInternalCredentials): Promise<ServiceResponse<ApiToolExecutionResult | { accessToken: string }>> {
     const securityScheme = apiTool.openapiSpecification.components.securitySchemes[apiTool.securityOption];
 
     if (!securityScheme || securityScheme.type !== 'oauth2') {
@@ -26,39 +28,37 @@ export async function handleOauthCheck(apiTool: any, agentServiceCredentials: Ag
     const scopes = Object.keys(securityScheme.flows.authorizationCode.scopes);
 
     const body: GetUserOAuthInput = {
-        userId: agentServiceCredentials.clientUserId,
-        organizationId: agentServiceCredentials.clientOrganizationId,
+        clientUserId: agentInternalCredentials.clientUserId,
+        clientOrganizationId: agentInternalCredentials.clientOrganizationId,
         oauthProvider: provider,
         requiredScopes: scopes
     };
 
-    const credentials: AgentBaseCredentials = {
-        platformApiKey: agentServiceCredentials.platformApiKey,
-        clientAuthUserId: agentServiceCredentials.clientUserId,
-        clientAuthOrganizationId: agentServiceCredentials.clientOrganizationId
-    };
-
     try {
-        const authCheckResponse = await checkAuthExternalApiService(body, credentials);
+        const authCheckResponse: ServiceResponse<CheckUserOAuthResult> = await checkAuthExternalApiService(body, agentInternalCredentials);
 
-        if (authCheckResponse.success === false) {
+        if (!authCheckResponse.success) {
+            console.error('[OAuth Service] Error checking OAuth status:', authCheckResponse.error);
             return authCheckResponse;
         }
 
-        if (authCheckResponse.data.hasAuth === false) {
+        const authCheckResult = authCheckResponse.data as CheckUserOAuthResult;
+
+        if (!authCheckResult.valid) {
+            const authCheckInvalidResult = authCheckResult as CheckUserOAuthInvalidResult;
             return {
                 success: true,
-                // @ts-ignore - Casting to ApiToolExecutionResult as per user instruction.
                 data: {
                     needsAuth: true,
-                    authUrl: authCheckResponse.data.authUrl
+                    authUrl: authCheckInvalidResult.authUrl
                 }
             };
         } else {
+            const authCheckValidResult = authCheckResult as CheckUserOAuthValidResult;
             return {
                 success: true,
                 data: {
-                    accessToken: authCheckResponse.data.oauthCredentials[0].accessToken
+                    accessToken: authCheckValidResult.oauthCredentials[0].accessToken
                 }
             };
         }

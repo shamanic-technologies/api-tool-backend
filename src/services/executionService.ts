@@ -21,7 +21,7 @@ import { recordApiToolExecution } from './databaseService.js';
 /**
  * Handles the full execution flow for a given API tool.
  * Orchestrates validation, prerequisite checks, and API calls by delegating to other services.
- * @param {AgentServiceCredentials} agentServiceCredentials - Credentials for the agent service.
+ * @param {AgentServiceCredentials} agentInternalCredentials - Credentials for the agent service.
  * @param {ApiTool} apiTool - The API tool configuration.
  * @param {string} conversationId - The ID of the current conversation.
  * @param {Record<string, any>} params - The raw input parameters for the tool.
@@ -29,13 +29,13 @@ import { recordApiToolExecution } from './databaseService.js';
  * @returns {Promise<ApiToolExecutionResult>} The result of the execution (Success, Error, or SetupNeeded).
  */
 export const handleExecution = async (
-    agentServiceCredentials: AgentInternalCredentials,
+    agentInternalCredentials: AgentInternalCredentials,
     apiTool: ApiTool,
     conversationId: string,
     params: Record<string, any>,
     resolvedSecrets: Record<string, string>
 ): Promise<ServiceResponse<ApiToolExecutionResult>> => {
-    const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentServiceCredentials.clientUserId}`;
+    const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentInternalCredentials.clientUserId}`;
     let executionOutcome: Partial<Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at' | 'api_tool_id' | 'user_id'>> = {};
     let validationResponseData: Record<string, any> | undefined;
 
@@ -54,8 +54,8 @@ export const handleExecution = async (
             try {
                 await recordApiToolExecution({
                     apiToolId: apiTool.id,
-                    userId: agentServiceCredentials.clientUserId, 
-                    organizationId: agentServiceCredentials.clientOrganizationId,
+                    userId: agentInternalCredentials.clientUserId, 
+                    organizationId: agentInternalCredentials.clientOrganizationId,
                     input: executionOutcome.input,
                     output: executionOutcome.output,
                     statusCode: executionOutcome.status_code!,
@@ -71,7 +71,7 @@ export const handleExecution = async (
         executionOutcome.input = validationResponseData; // Log validated params for subsequent logging attempts
 
         // 2. Check Prerequisites (using prerequisiteService)
-        const prereqResult : { setupNeeded?: SetupNeeded; credentials?: Record<string, string | null> } = await checkPrerequisites(apiTool, agentServiceCredentials, resolvedSecrets);
+        const prereqResult : { setupNeeded?: SetupNeeded; credentials?: Record<string, string | null> } = await checkPrerequisites(apiTool, agentInternalCredentials, resolvedSecrets);
         if (prereqResult.setupNeeded?.needsSetup) {
             const setupNeededData = prereqResult.setupNeeded; 
             // @ts-ignore - hint is not recognised in the SetupNeeded type
@@ -88,8 +88,8 @@ export const handleExecution = async (
             try {
                 await recordApiToolExecution({
                     apiToolId: apiTool.id,
-                    userId: agentServiceCredentials.clientUserId,
-                    organizationId: agentServiceCredentials.clientOrganizationId,
+                    userId: agentInternalCredentials.clientUserId,
+                    organizationId: agentInternalCredentials.clientOrganizationId,
                     input: executionOutcome.input || params, 
                     output: executionOutcome.output,
                     statusCode: executionOutcome.status_code!, 
@@ -178,8 +178,8 @@ export const handleExecution = async (
     try {
         await recordApiToolExecution({
             apiToolId: apiTool.id,
-            userId: agentServiceCredentials.clientUserId,
-            organizationId: agentServiceCredentials.clientOrganizationId,
+            userId: agentInternalCredentials.clientUserId,
+            organizationId: agentInternalCredentials.clientOrganizationId,
             input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set
             output: executionOutcome.output,
             statusCode: executionOutcome.status_code!, // Should be set in success or catch block

@@ -26,8 +26,13 @@ export const serviceKeyAuthMiddleware = (req: Request, res: Response, next: Next
 
   // Check if Authorization header exists and is in the correct Bearer token format.
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.warn('[Service Key Auth] Unauthorized: Missing or invalid Authorization header.');
-    res.status(401).json({ success: false, error: 'Unauthorized: Missing or invalid Authorization header.' });
+    console.error('[Service Key Auth] Unauthorized: Missing or invalid Authorization header.');
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      details: 'Missing or invalid Authorization header.',
+      hint: 'This error should not happen. Contact support'
+    });
     return;
   }
 
@@ -35,12 +40,16 @@ export const serviceKeyAuthMiddleware = (req: Request, res: Response, next: Next
 
   // Validate the provided API key against the configured service key.
   if (providedKey !== serviceKey) {
-    console.warn('[Service Key Auth] Unauthorized: Invalid Service API Key provided.');
-    res.status(401).json({ success: false, error: 'Unauthorized: Invalid Service API Key.' });
+    console.error('[Service Key Auth] Unauthorized: Invalid Service API Key provided.');
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized',
+      details: 'Invalid Service API Key.',
+      hint: 'This error should not happen. Contact support'
+    });
     return;
   }
 
   // If the key is valid, proceed to the next middleware or route handler.
-  console.log('[Service Key Auth] Authenticated successfully with Service API Key.');
   next();
 }; 

@@ -49,11 +49,12 @@ export const agentAuthMiddleware = (req: Request, res: Response, next: NextFunct
     if (!platformUserId) missingHeaders.push(HEADER_PLATFORM_USER_ID);
     if (!clientUserId) missingHeaders.push(HEADER_CLIENT_USER_ID);
     if (!clientOrganizationId) missingHeaders.push(HEADER_CLIENT_ORGANIZATION_ID);
-    console.warn(`[Agent Auth Middleware] Authentication failed: Missing required headers: ${missingHeaders.join(', ')}`);
+    console.error(`[Agent Auth Middleware] Authentication failed: Missing required headers: ${missingHeaders.join(', ')}`);
     const errorResponse: ErrorResponse = {
       success: false,
       error: 'Unauthorized',
       details: `Missing required headers: ${missingHeaders.join(', ')}`,
+      hint: `This error should not happen. Contact support`
     };
     res.status(401).json(errorResponse);
     return;
@@ -67,8 +68,6 @@ export const agentAuthMiddleware = (req: Request, res: Response, next: NextFunct
     clientOrganizationId,
     agentId,      // Will be undefined if header not present
   };
-
-  console.log(`[Agent Auth Middleware] Authenticated successfully for platformUserId: ${platformUserId}, clientUserId: ${clientUserId}` + (agentId ? `, agentId: ${agentId}` : ' (no agentId)'));
   // Proceed to the next middleware or route handler
   next();
 }; 

@@ -2,8 +2,13 @@ import {
     ApiTool,
     AgentInternalCredentials,
     SetupNeeded,
-    UtilityInputSecret // Keep for now, for casting target
+    UtilityInputSecret,
+    OAuthProvider,
+    CheckUserOAuthResult,
+    GetUserOAuthInput,
+    AgentBaseCredentials
 } from '@agent-base/types';
+import { checkAuthExternalApiService } from '@agent-base/api-client';
 
 import { getOperation, getCredentialKeyForScheme, getBasicAuthCredentialKeys } from './utils.js'; // Import from utils, including new helpers
 import { OperationObject } from 'openapi3-ts/oas30';
@@ -12,7 +17,7 @@ import { OperationObject } from 'openapi3-ts/oas30';
  * Checks prerequisites (Secrets) based on the ApiTool's OpenAPI specification and pre-fetched secrets.
  * This version NO LONGER CALLS secret-service.
  * @param {ApiTool} apiTool The API tool configuration.
- * @param {AgentInternalCredentials} agentServiceCredentials Credentials for the agent (only clientUserId needed here).
+ * @param {AgentBaseCredentials} agentBaseCredentials Credentials for the agent (only clientUserId needed here).
  * @param {Record<string, string>} resolvedSecrets Pre-fetched secrets from utilityService (GSM).
  * @returns {Promise<{
  *    setupNeeded?: SetupNeeded;
@@ -21,7 +26,7 @@ import { OperationObject } from 'openapi3-ts/oas30';
  */
 export const checkPrerequisites = async (
     apiTool: ApiTool,
-    agentServiceCredentials: AgentInternalCredentials,
+    agentInternalCredentials: AgentInternalCredentials,
     resolvedSecrets: Record<string, string> // Secrets already fetched by utilityService
 ): Promise<{ 
     setupNeeded?: SetupNeeded; 
@@ -186,14 +191,68 @@ export const checkPrerequisites = async (
             }
             break;
         
-        // case 'oauth2': 
-        //     // OAuth2 would require a different flow, likely not just checking resolvedSecrets for a static token.
-        //     // It might involve checking for an access token and refresh token, and potentially initiating a refresh flow.
-        //     // For now, this implies setup is needed if OAuth2 is the scheme.
-        //     console.log(`${logPrefix} OAuth2 security scheme selected. This version assumes setup is needed or token is managed externally.`);
-        //     allPrerequisitesMet = false; // Or specific logic to check for existing valid tokens in resolvedSecrets.
-        //     // missingSetupSecrets.push( UtilityInputSecret.OAUTH_TOKEN ); // Example, if you had such a generic type.
-        //     break;
+        case 'oauth2':
+            // The tool is secured by OAuth2. We need to check with the tool-auth-service if the user has valid credentials.
+            if (!operation.security || !operation.security[0]) {
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: oauth2 scheme defined but no security requirements on operation.`);
+                allPrerequisitesMet = false;
+                break;
+            }
+
+            const scopes = operation.security[0][chosenSchemeName];
+            if (!scopes || !Array.isArray(scopes)) {
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: oauth2 scopes are missing or not an array.`);
+                allPrerequisitesMet = false;
+                break;
+            }
+
+            const oauthProvider = apiTool.utilityProvider; // Assuming utilityProvider maps to OAuthProvider
+            if (!oauthProvider) {
+                console.error(`${logPrefix} Misconfig for ${apiTool.id}: utilityProvider is not defined for oauth2 tool.`);
+                allPrerequisitesMet = false;
+                break;
+            }
+            
+            // This is a temporary solution to map 'gmail' to 'google'
+            const provider = oauthProvider === 'gmail' ? OAuthProvider.GOOGLE : oauthProvider as OAuthProvider;
+            
+            const getUserOAuthInput: GetUserOAuthInput = {
+                clientUserId: agentInternalCredentials.clientUserId,
+                clientOrganizationId: agentInternalCredentials.clientOrganizationId,
+                oauthProvider: provider,
+                requiredScopes: scopes,
+            };
+
+            const authCheckResponse = await checkAuthExternalApiService(getUserOAuthInput, agentInternalCredentials);
+
+            if (!authCheckResponse.success) {
+                console.error(`${logPrefix} Error checking OAuth status: ${authCheckResponse.error}`);
+                allPrerequisitesMet = false;
+                // Potentially return a more specific error to the user
+                break;
+            }
+
+            const authResult = authCheckResponse.data as CheckUserOAuthResult;
+            if (authResult.valid && authResult.oauthCredentials && authResult.oauthCredentials.length > 0) {
+                // User is authenticated, add the token to the credentials
+                const credentialKey = getCredentialKeyForScheme(chosenSchemeName);
+                fetchedCredentials[credentialKey] = authResult.oauthCredentials[0].accessToken;
+            } else {
+                // User needs to authenticate
+                allPrerequisitesMet = false;
+                const setupNeededData: SetupNeeded = {
+                    needsSetup: true,
+                    utilityProvider: apiTool.utilityProvider,
+                    message: `Please connect your ${apiTool.openapiSpecification.info.title} account to continue.`,
+                    title: `Connect ${apiTool.openapiSpecification.info.title}`,
+                    description: apiTool.openapiSpecification.info.description || `Authentication needed for ${apiTool.id}.`,
+                    requiredSecretInputs: [],
+                    requiredActionConfirmations: [],
+                    oauthUrl: authResult.authUrl
+                };
+                return { setupNeeded: setupNeededData };
+            }
+            break;
 
         default:
             console.error(`${logPrefix} Unsupp. security scheme type for ${apiTool.id}: ${securitySchemeObject.type}`);

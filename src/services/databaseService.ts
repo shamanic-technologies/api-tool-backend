@@ -221,7 +221,6 @@ export const recordApiToolExecution = async (
         if (result.rows.length === 0) {
             throw new Error('Failed to record API tool execution: No rows returned.');
         }
-        console.log(`[DB SERVICE] Recorded execution for tool ${apiToolId} by user ${userId}`);
         return mapRowToApiToolExecution(result.rows[0]); // Using helper
     } catch (dbError) {
         console.error('[DB SERVICE] Error in recordApiToolExecution:', dbError);
@@ -242,7 +241,6 @@ export const getToolExecutionsByUserId = async (userId: string, organizationId: 
     `;
     try {
         const result = await query(sql, [userId, organizationId]); // Using generic query
-        console.log(`[DB SERVICE] Retrieved ${result.rows.length} executions for user ${userId} in organization ${organizationId}`);
         return result.rows.map(mapRowToApiToolExecution); // Using helper
     } catch (dbError) {
         console.error('[DB SERVICE] Error in getToolExecutionsByUserId:', dbError);

@@ -35,7 +35,6 @@ export const handleExecution = async (
     params: Record<string, any>,
     resolvedSecrets: Record<string, string>
 ): Promise<ServiceResponse<ApiToolExecutionResult>> => {
-    const logPrefix = `[EXECUTE ${apiTool.id}] User: ${agentInternalCredentials.clientUserId}`;
     let executionOutcome: Partial<Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at' | 'api_tool_id' | 'user_id'>> = {};
     let validationResponseData: Record<string, any> | undefined;
 

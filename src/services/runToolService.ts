@@ -39,7 +39,6 @@ export const runToolExecution = async (
         // Ensure user-tool record exists, creating it with UNSET status if it's the first call.
         try {
             await getOrCreateUserApiTool(clientUserId, clientOrganizationId, toolId);
-            console.log(`${logPrefix} Ensured UserApiTool record exists for user ${clientUserId}, tool ${toolId}.`);
         } catch (dbError) {
             // Log the error but don't let it block the main execution flow.
             // The primary function is to execute the tool. Status tracking is secondary.
@@ -161,10 +160,8 @@ export const runToolExecution = async (
 
                     if (passwordSecretType) {
                         const gsmPasswordSecretId = generateSecretManagerId(UserType.Client, clientUserId, clientOrganizationId, apiTool.utilityProvider.toString(), passwordSecretType);
-                        console.log(`${logPrefix} Attempting to fetch GSM secret for Basic Auth Password with ID: ${gsmPasswordSecretId}`);
                         try {
                             passwordValue = (await gsmClient.getSecret(gsmPasswordSecretId)) || "";
-                            console.log(`${logPrefix} GSM response for '${gsmPasswordSecretId}' (password): ${passwordValue === null ? 'null' : passwordValue === undefined ? 'undefined' : (passwordValue === '' ? 'empty string' : 'received value (or empty if originally empty)')}`);
                         } catch (e) { 
                             missingSecretsDetails.push({ secretKeyInSpec: 'password', secretType: passwordSecretType as UtilityInputSecret, inputPrompt: 'Enter Password' });
                         }
@@ -179,7 +176,6 @@ export const runToolExecution = async (
                         const basicAuthKeys = getBasicAuthCredentialKeys(apiTool.securityOption);
                         resolvedSecrets[basicAuthKeys.username] = usernameValue;
                         resolvedSecrets[basicAuthKeys.password] = passwordValue;
-                        console.log(`${logPrefix} Stored raw username and password for Basic Auth scheme '${apiTool.securityOption}' under keys '${basicAuthKeys.username}', '${basicAuthKeys.password}'.`);
                     } else if (!usernameValue && usernameSecretType && !basicAuthSecretsMissing) {
                         if (!missingSecretsDetails.some(s => s.secretKeyInSpec === 'username' && s.secretType === (usernameSecretType as UtilityInputSecret))){
                              missingSecretsDetails.push({ secretKeyInSpec: 'username', secretType: usernameSecretType as UtilityInputSecret, inputPrompt: 'Enter Username' });

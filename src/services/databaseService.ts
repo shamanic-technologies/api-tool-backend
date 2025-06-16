@@ -100,10 +100,10 @@ export const getApiToolById = async (id: string): Promise<ApiTool | null> => {
  * @returns {Promise<ApiToolRecord[]>} An array of API tool records.
  * @throws {Error} If the database operation fails.
  */
-export const getAllApiTools = async (): Promise<ApiTool[]> => {
-    const sql = 'SELECT * FROM api_tools ORDER BY created_at DESC;';
+export const getAllApiTools = async (userId: string, organizationId: string): Promise<ApiTool[]> => {
+    const sql = 'SELECT * FROM api_tools WHERE creator_user_id = $1 AND creator_organization_id = $2 ORDER BY created_at DESC;';
     try {
-        const result = await query(sql);
+        const result = await query(sql, [userId, organizationId]);
         return result.rows.map(mapRowToApiTool);
     } catch (error) {
         console.error("Error fetching all API tools:", error);
@@ -112,15 +112,48 @@ export const getAllApiTools = async (): Promise<ApiTool[]> => {
 };
 
 /**
+ * Renames an API tool in the database, checking for ownership.
+ * @param id The ID of the tool to rename.
+ * @param name The new name for the tool.
+ * @param creatorUserId The ID of the user attempting to rename the tool.
+ * @param creatorOrganizationId The ID of the organization attempting to rename the tool.
+ * @returns The updated API tool, or null if not found or not owned by the user.
+ */
+export const renameApiTool = async (id: string, name: string, creatorUserId: string, creatorOrganizationId: string): Promise<ApiTool | null> => {
+    const sql = `
+        UPDATE api_tools
+        SET name = $1, updated_at = current_timestamp
+        WHERE id = $2 AND creator_user_id = $3 AND creator_organization_id = $4
+        RETURNING *;
+    `;
+
+    try {
+        const result = await query(sql, [name, id, creatorUserId, creatorOrganizationId]);
+        if (result.rows.length === 0) {
+            // This can happen if the tool doesn't exist or the user is not the owner.
+            return null;
+        }
+        return mapRowToApiTool(result.rows[0]);
+    } catch (error) {
+        console.error(`Error renaming API tool with ID ${id}:`, error);
+        throw new Error('Could not rename API tool.');
+    }
+};
+
+/**
  * Updates an existing API tool record by its ID.
  * @param {string} id - The UUID of the API tool to update.
  * @param {Partial<Omit<ApiToolRecord, 'id' | 'created_at' | 'updated_at'>>} updates - An object containing the fields to update.
+ * @param {string} creatorUserId - The ID of the user attempting to update the tool.
+ * @param {string} creatorOrganizationId - The ID of the organization attempting to update the tool.
  * @returns {Promise<ApiToolRecord | null>} The updated API tool record or null if not found.
  * @throws {Error} If the database operation fails.
  */
 export const updateApiTool = async (
     id: string,
-    updates: Partial<ApiToolData>
+    updates: Partial<ApiToolData>,
+    creatorUserId: string,
+    creatorOrganizationId: string
 ): Promise<ApiTool | null> => {
     const updateFields = Object.keys(updates) as Array<keyof Partial<ApiToolData>>;
     if (updateFields.length === 0) {
@@ -145,11 +178,13 @@ export const updateApiTool = async (
     });
     
     params.push(id); // Add the ID for the WHERE clause
+    params.push(creatorUserId); // Add the creatorUserId for the WHERE clause
+    params.push(creatorOrganizationId); // Add the creatorOrganizationId for the WHERE clause
 
     const sql = `
         UPDATE api_tools
         SET ${setClauses}, updated_at = current_timestamp
-        WHERE id = $${params.length}
+        WHERE id = $${params.length - 2} AND creator_user_id = $${params.length - 1} AND creator_organization_id = $${params.length}
         RETURNING *;
     `;
 
@@ -169,13 +204,15 @@ export const updateApiTool = async (
 /**
  * Deletes an API tool record by its ID.
  * @param {string} id - The UUID of the API tool to delete.
+ * @param {string} creatorUserId - The ID of the user attempting to delete the tool.
+ * @param {string} creatorOrganizationId - The ID of the organization attempting to delete the tool.
  * @returns {Promise<boolean>} True if the deletion was successful, false otherwise.
  * @throws {Error} If the database operation fails.
  */
-export const deleteApiTool = async (id: string): Promise<boolean> => {
-    const sql = 'DELETE FROM api_tools WHERE id = $1;';
+export const deleteApiTool = async (id: string, creatorUserId: string, creatorOrganizationId: string): Promise<boolean> => {
+    const sql = 'DELETE FROM api_tools WHERE id = $1 AND creator_user_id = $2 AND creator_organization_id = $3;';
     try {
-        const result = await query(sql, [id]);
+        const result = await query(sql, [id, creatorUserId, creatorOrganizationId]);
         return result.rowCount !== null && result.rowCount > 0;
     } catch (error) {
         console.error(`Error deleting API tool with ID ${id}:`, error);

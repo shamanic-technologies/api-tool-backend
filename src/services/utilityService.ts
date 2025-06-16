@@ -11,6 +11,9 @@ import {
     createApiTool,
     getApiToolById,
     getAllApiTools,
+    renameApiTool as renameApiToolInDb,
+    deleteApiTool as deleteApiToolInDb,
+    updateApiTool as updateApiToolInDb,
 } from './databaseService.js';
 import {
     getOperation,
@@ -79,8 +82,8 @@ const generateOpenAIEmbedding = async (openapiSpec: OpenAPIObject): Promise<numb
  * Service function to list available API tools (summary: ID, name, description).
  * @returns {Promise<ApiToolList>} A list of API tool summaries.
  */
-export const listAvailableTools = async (): Promise<UtilitiesList> => {
-    const toolRecords = await getAllApiTools(); 
+export const listAvailableTools = async (userId: string, organizationId: string): Promise<UtilitiesList> => {
+    const toolRecords = await getAllApiTools(userId, organizationId); 
     return toolRecords.map((tool: ApiTool) => ({ // Add any type for tool
         id: tool.id,
         name: tool.name,
@@ -176,4 +179,121 @@ export const addNewTool = async (toolCreationData: CreateApiToolRequest): Promis
         }
         throw new Error('Failed to add new tool due to an unknown error.');
     }
+};
+
+/**
+ * Renames a specific API tool, ensuring the user is the creator.
+ * @param toolId The ID of the tool to rename.
+ * @param newName The new name for the tool.
+ * @param userId The ID of the user requesting the rename.
+ * @param organizationId The ID of the user's organization.
+ * @returns The updated API tool.
+ * @throws An error if the tool is not found, the user is not the owner, or the update fails.
+ */
+export const renameTool = async (toolId: string, newName: string, userId: string, organizationId: string): Promise<ApiTool> => {
+    const logPrefix = `[UtilityService RenameTool ${toolId}]`;
+
+    // First, verify the tool exists and the user is the owner.
+    // This is implicitly handled by the `renameApiToolInDb` function's WHERE clause,
+    // but an explicit check can provide clearer error messages.
+    const tool = await getApiToolById(toolId);
+    if (!tool) {
+        throw new Error('Tool not found.');
+    }
+
+    if (tool.creatorUserId !== userId) {
+        console.warn(`${logPrefix} User ${userId} attempted to rename tool owned by ${tool.creatorUserId}.`);
+        throw new Error('Forbidden: You do not have permission to rename this tool.');
+    }
+
+    if (tool.creatorOrganizationId !== organizationId) {
+        console.error(`${logPrefix} User from organization ${organizationId} attempted to rename tool owned by organization ${tool.creatorOrganizationId}.`);
+        throw new Error('Forbidden: You do not have permission to rename this tool.');
+    }
+
+    const renamedTool = await renameApiToolInDb(toolId, newName, userId, organizationId);
+
+    if (!renamedTool) {
+        // This case should ideally not be reached if the above checks pass,
+        // but it's a safeguard against race conditions or other issues.
+        console.error(`${logPrefix} Failed to rename tool in database, despite passing checks.`);
+        throw new Error('Failed to update tool name.');
+    }
+
+    return renamedTool;
+};
+
+/**
+ * Deletes a specific API tool, ensuring the user is the creator.
+ * @param toolId The ID of the tool to delete.
+ * @param userId The ID of the user requesting the deletion.
+ * @param organizationId The ID of the user's organization.
+ * @returns A boolean indicating success.
+ * @throws An error if the tool is not found, the user is not the owner, or the deletion fails.
+ */
+export const deleteTool = async (toolId: string, userId: string, organizationId: string): Promise<boolean> => {
+    const logPrefix = `[UtilityService DeleteTool ${toolId}]`;
+
+    const tool = await getApiToolById(toolId);
+    if (!tool) {
+        console.error(`${logPrefix} Tool not found.`);
+        throw new Error('Tool not found.');
+    }
+
+    if (tool.creatorUserId !== userId) {
+        console.error(`${logPrefix} User ${userId} attempted to delete tool owned by ${tool.creatorUserId}.`);
+        throw new Error('Forbidden: You do not have permission to delete this tool.');
+    }
+
+    if (tool.creatorOrganizationId !== organizationId) {
+        console.error(`${logPrefix} User from organization ${organizationId} attempted to delete tool owned by organization ${tool.creatorOrganizationId}.`);
+        throw new Error('Forbidden: You do not have permission to delete this tool.');
+    }
+
+    const wasDeleted = await deleteApiToolInDb(toolId, userId, organizationId);
+
+    if (!wasDeleted) {
+        console.error(`${logPrefix} Failed to delete tool in database, despite passing checks.`);
+        throw new Error('Failed to delete tool.');
+    }
+
+    return wasDeleted;
+};
+
+/**
+ * Updates a specific API tool, ensuring the user is the creator.
+ * @param toolId The ID of the tool to update.
+ * @param updates The partial data to update the tool with.
+ * @param userId The ID of the user requesting the update.
+ * @param organizationId The ID of the user's organization.
+ * @returns The updated API tool.
+ * @throws An error if the tool is not found, the user is not the owner, or the update fails.
+ */
+export const updateTool = async (toolId: string, updates: Partial<ApiToolData>, userId: string, organizationId: string): Promise<ApiTool> => {
+    const logPrefix = `[UtilityService UpdateTool ${toolId}]`;
+
+    const tool = await getApiToolById(toolId);
+    if (!tool) {
+        console.error(`${logPrefix} Tool not found.`);
+        throw new Error('Tool not found.');
+    }
+
+    if (tool.creatorUserId !== userId) {
+        console.error(`${logPrefix} User ${userId} attempted to update tool owned by ${tool.creatorUserId}.`);
+        throw new Error('Forbidden: You do not have permission to update this tool.');
+    }
+
+    if (tool.creatorOrganizationId !== organizationId) {
+        console.error(`${logPrefix} User from organization ${organizationId} attempted to update tool owned by organization ${tool.creatorOrganizationId}.`);
+        throw new Error('Forbidden: You do not have permission to update this tool.');
+    }
+
+    const updatedTool = await updateApiToolInDb(toolId, updates, userId, organizationId);
+
+    if (!updatedTool) {
+        console.error(`${logPrefix} Failed to update tool in database, despite passing checks.`);
+        throw new Error('Failed to update tool.');
+    }
+
+    return updatedTool;
 };

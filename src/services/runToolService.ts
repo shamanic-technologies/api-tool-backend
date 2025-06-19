@@ -224,7 +224,7 @@ export const runToolExecution = async (
             return { success: true, data: setupNeededData as ApiToolExecutionResult };
         }
 
-        const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets);
+        const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets, logPrefix);
 
         // After successful execution (not an error, not a setup needed response)
         // Check if result.data is not SetupNeeded

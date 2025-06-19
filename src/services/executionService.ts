@@ -26,6 +26,7 @@ import { recordApiToolExecution } from './databaseService.js';
  * @param {string} conversationId - The ID of the current conversation.
  * @param {Record<string, any>} params - The raw input parameters for the tool.
  * @param {Record<string, string>} resolvedSecrets - The resolved secrets for the tool.
+ * @param {string} logPrefix - A prefix for logging messages.
  * @returns {Promise<ApiToolExecutionResult>} The result of the execution (Success, Error, or SetupNeeded).
  */
 export const handleExecution = async (
@@ -33,7 +34,8 @@ export const handleExecution = async (
     apiTool: ApiTool,
     conversationId: string,
     params: Record<string, any>,
-    resolvedSecrets: Record<string, string>
+    resolvedSecrets: Record<string, string>,
+    logPrefix: string
 ): Promise<ServiceResponse<ApiToolExecutionResult>> => {
     let executionOutcome: Partial<Omit<ApiToolExecutionRecord, 'id' | 'created_at' | 'updated_at' | 'api_tool_id' | 'user_id'>> = {};
     let validationResponseData: Record<string, any> | undefined;

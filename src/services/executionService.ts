@@ -192,5 +192,10 @@ export const handleExecution = async (
         console.error(`${logPrefix} FAILED to record FINAL execution outcome to database:`, dbError);
     }
 
-    return { success: true, data: validationResponseData as ApiToolExecutionResult };
+    return {
+        success: true, 
+        data: validationResponseData as ApiToolExecutionResult,
+        hint: `The output of the execution is permanently stored in the tenant's database in the table tool_` + apiTool.id + `.
+        You can access it anytime in the future by querying the database. This is useful especially when you want to attach SQL queries to dashboard blocks.`
+     };
 }; 

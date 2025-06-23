@@ -8,7 +8,8 @@ import {
     AgentInternalCredentials, 
     ServiceResponse, 
     // @ts-ignore - ApiToolExecutionResult is not recognised in the types package
-    ApiToolExecutionResult
+    ApiToolExecutionResult,
+    ApiTool
 } from "@agent-base/types";
 import { generateSecretManagerId } from "@agent-base/secret-client";
 import { getApiToolById, getOrCreateUserApiTool, recordApiToolExecution, updateUserApiToolStatus } from "./databaseService.js";
@@ -16,6 +17,7 @@ import { gsmClient } from "../index.js";
 import { getCredentialKeyForScheme } from "./utils.js";
 import { handleExecution } from "./executionService.js";
 import { handleOauthCheck } from './oauthService.js';
+import { logApiToolExecution } from "@agent-base/neon-client";
 
 /**
  * Main service function to execute an API tool.
@@ -225,6 +227,17 @@ export const runToolExecution = async (
         }
 
         const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets, logPrefix);
+
+        // Log the execution without blocking the response
+        if (result.success) {
+            try {
+              await logApiToolExecution(apiTool, params, result.data);
+              console.debug(`${logPrefix} Successfully logged execution for ${toolId}`);
+            } catch (logError) {
+              console.error(`${logPrefix} FAILED to log execution for ${toolId}:`, logError);
+              // Do not throw or return an error here, the primary execution was successful.
+            }
+        }
 
         // After successful execution (not an error, not a setup needed response)
         // Check if result.data is not SetupNeeded

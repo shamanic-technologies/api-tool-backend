@@ -17,7 +17,8 @@ import { gsmClient } from "../index.js";
 import { getCredentialKeyForScheme } from "./utils.js";
 import { handleExecution } from "./executionService.js";
 import { handleOauthCheck } from './oauthService.js';
-import { logApiToolExecution } from "@agent-base/neon-client";
+import { getTableNameForApiTool, logApiToolExecution } from "@agent-base/neon-client";
+import { summarizeApiResult } from './summaryService.js';
 
 /**
  * Main service function to execute an API tool.
@@ -228,30 +229,23 @@ export const runToolExecution = async (
 
         const result : ServiceResponse<ApiToolExecutionResult> = await handleExecution(agentServiceCredentials, apiTool, conversationId, params, resolvedSecrets, logPrefix);
 
-        // Log the execution without blocking the response
-        if (result.success) {
-            try {
-              await logApiToolExecution(apiTool, params, result.data);
-              console.debug(`${logPrefix} Successfully logged execution for ${toolId}`);
-            } catch (logError) {
-              console.error(`${logPrefix} FAILED to log execution for ${toolId}:`, logError);
-              // Do not throw or return an error here, the primary execution was successful.
-            }
+        if (!result.success) {
+            return result;
         }
 
-        // After successful execution (not an error, not a setup needed response)
-        // Check if result.data is not SetupNeeded
-        if (!(typeof result === 'object' && result !== null && 'needsSetup' in result && result.needsSetup === true)) {
-            try {
-                await updateUserApiToolStatus(clientUserId, clientOrganizationId, toolId, ApiToolStatus.ACTIVE);
-                console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
-            } catch (dbUpdateError) {
-                // Log error but don't let it fail the overall successful execution response.
-                console.error(`${logPrefix} Failed to update UserApiTool status to ACTIVE, but tool execution was successful:`, dbUpdateError);
-            }
-        }
-    
-        return result;
+        await logApiToolExecution(apiTool, params, result.data);
+        console.debug(`${logPrefix} Successfully logged execution for ${toolId}`);
+        await updateUserApiToolStatus(clientUserId, clientOrganizationId, toolId, ApiToolStatus.ACTIVE);
+        console.log(`${logPrefix} Updated UserApiTool status to ACTIVE for user ${clientUserId}, tool ${toolId}.`);
+        // After logging the full result, summarize it for the agent.
+        const summarizedResult = summarizeApiResult(result.data);
+
+        return {
+            success: true,
+            data: summarizedResult,
+            hint: `The output of the execution is permanently stored in the tenant's database in the table tool_` + getTableNameForApiTool(apiTool) + `.
+            You can access it anytime in the future by querying the database. This is useful especially when you want to attach SQL queries to dashboard blocks.`    
+        };
 
     } catch (error) {
         console.error(`${logPrefix} Error in runToolExecution for ${toolId}:`, error);

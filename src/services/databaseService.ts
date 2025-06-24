@@ -39,7 +39,6 @@ export const createApiTool = async (
         securitySecrets,
         isVerified,
         creatorUserId,
-        // @ts-ignore - creatorOrganizationId is in the ApiTool type
         creatorOrganizationId,
     } = toolData;
 

@@ -1,5 +1,6 @@
 import express, { Express, Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import { GoogleSecretManager } from '@agent-base/secret-client';
 import utilityRoutes from './routes/utilityRoutes.js';
 import path from 'path';
@@ -91,6 +92,7 @@ const app: express.Express = express();
 const port = process.env.PORT;
 
 // Middlewares
+app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON bodies
 
 // ===== HEALTH CHECK ROUTE =====

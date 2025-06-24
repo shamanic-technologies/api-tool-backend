@@ -4,19 +4,18 @@ import {
     ErrorResponse,
     AgentInternalCredentials,
     SetupNeeded,
-    // @ts-ignore - For some reason, ApiToolExecutionResult is not recognized in the types package
     ApiToolExecutionResult,
     ServiceResponse,
 } from '@agent-base/types';
 import axios from 'axios';
 import { ApiToolExecutionRecord } from '../types/db.types.js';
-import { ApiToolRecord } from '../types/db.types.js'; // Also needed for ApiTool type used in parameters
 
 // Import functions from the new services
 import { validateInputParameters } from './validationService.js';
 import { checkPrerequisites } from './prerequisiteService.js';
 import { makeApiCall } from './apiCallService.js';
 import { recordApiToolExecution } from './databaseService.js';
+import { getTableNameForApiTool } from '@agent-base/neon-client';
 
 /**
  * Handles the full execution flow for a given API tool.
@@ -47,7 +46,7 @@ export const handleExecution = async (
             console.log(`${logPrefix} Validation failed. Returning error response: ${JSON.stringify(validationResponse,null,2)}`);
             executionOutcome = {
                 input: params,
-                status_code: validationResponse.statusCode, // Or a more specific status code
+                status_code: validationResponse.statusCode || 500, // Or a more specific status code
                 error: validationResponse.error,
                 error_details: JSON.stringify(validationResponse.details),
                 hint: validationResponse.hint,
@@ -59,7 +58,7 @@ export const handleExecution = async (
                     organizationId: agentInternalCredentials.clientOrganizationId,
                     input: executionOutcome.input,
                     output: executionOutcome.output,
-                    statusCode: executionOutcome.status_code!,
+                    statusCode: executionOutcome.status_code || 500,
                     error: executionOutcome.error,
                     errorDetails: executionOutcome.error_details,
                 });
@@ -75,7 +74,6 @@ export const handleExecution = async (
         const prereqResult : { setupNeeded?: SetupNeeded; credentials?: Record<string, string | null> } = await checkPrerequisites(apiTool, agentInternalCredentials, resolvedSecrets);
         if (prereqResult.setupNeeded?.needsSetup) {
             const setupNeededData = prereqResult.setupNeeded; 
-            // @ts-ignore - hint is not recognised in the SetupNeeded type
             const hintFromData = setupNeededData?.hint;
 
             executionOutcome = {
@@ -93,7 +91,7 @@ export const handleExecution = async (
                     organizationId: agentInternalCredentials.clientOrganizationId,
                     input: executionOutcome.input || params, 
                     output: executionOutcome.output,
-                    statusCode: executionOutcome.status_code!, 
+                    statusCode: executionOutcome.status_code || 200, 
                     hint: executionOutcome.hint,
                 });
             } catch (dbLogError) {
@@ -183,7 +181,7 @@ export const handleExecution = async (
             organizationId: agentInternalCredentials.clientOrganizationId,
             input: executionOutcome.input || params, // Fallback to raw params if validatedParams wasn't set
             output: executionOutcome.output,
-            statusCode: executionOutcome.status_code!, // Should be set in success or catch block
+            statusCode: executionOutcome.status_code || 500, // Should be set in success or catch block
             error: executionOutcome.error,
             errorDetails: executionOutcome.error_details,
             hint: executionOutcome.hint,
@@ -195,7 +193,5 @@ export const handleExecution = async (
     return {
         success: true, 
         data: validationResponseData as ApiToolExecutionResult,
-        hint: `The output of the execution is permanently stored in the tenant's database in the table tool_` + apiTool.id + `.
-        You can access it anytime in the future by querying the database. This is useful especially when you want to attach SQL queries to dashboard blocks.`
      };
 }; 

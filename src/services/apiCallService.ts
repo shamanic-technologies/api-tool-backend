@@ -260,23 +260,60 @@ export const makeApiCall = async (
         method: httpMethod as Method,
         url: finalUrl,
         headers: {
-            'Accept': 'application/json',
+            'Accept': 'application/json, */*;q=0.8', // Prefer JSON, but accept anything
             ...headers,
         },
         params: queryParams,
         data: requestBodyForCall,
+        responseType: 'arraybuffer', // Always get raw response to handle JSON and binary safely
     };
 
     try {
         const response = await axios(requestConfig);
+
+        const contentType = response.headers['content-type'];
+        let responseData: any;
+
+        if (contentType && contentType.includes('application/json')) {
+            try {
+                // For JSON, parse the buffer
+                responseData = JSON.parse(Buffer.from(response.data).toString('utf-8'));
+            } catch (e) {
+                // This can happen if the content-type is json but body is not, or truncated
+                console.error(`${logPrefix} Failed to parse JSON response despite content-type. Error:`, e);
+                // Return raw text if parsing fails
+                responseData = Buffer.from(response.data).toString('utf-8');
+            }
+        } else if (contentType && contentType.startsWith('text/')) {
+            // For plain text, just convert buffer to string
+            responseData = Buffer.from(response.data).toString('utf-8');
+        } else {
+            // For all other types (binary), encode as Base64 and wrap it
+            responseData = {
+                encoding: 'base64',
+                contentType: contentType || 'application/octet-stream',
+                content: Buffer.from(response.data).toString('base64'),
+            };
+        }
+
         const apiCallResponse : ApiToolExecutionResult = {
             success: true,
-            data: response.data,
+            data: responseData,
         };
         return apiCallResponse as ServiceResponse<ApiToolExecutionResult>;
     } catch (error) {
         if (axios.isAxiosError(error)) {
-            console.error(`${logPrefix} Axios error making API call: Status ${error.response?.status}, URL: ${error.config?.url}, Response Data:`, error.response?.data);
+            let errorDetails : any = error.response?.data;
+            // The error response data will also be an ArrayBuffer, so we need to decode it.
+            if (error.response?.data && Buffer.isBuffer(error.response.data)) {
+                 try {
+                    const decodedError = error.response.data.toString('utf-8');
+                    errorDetails = JSON.parse(decodedError);
+                } catch (e) {
+                    errorDetails = error.response.data.toString('utf-8');
+                }
+            }
+            console.error(`${logPrefix} Axios error making API call: Status ${error.response?.status}, URL: ${error.config?.url}, Response Data:`, errorDetails);
         }
         throw error; // Re-throw to be handled by handleExecution
     }

@@ -130,18 +130,29 @@ export const handleExecution = async (
         if (axios.isAxiosError(error)) {
              const status = error.response?.status || 500;
              statusCode = status;
-             const apiErrorData = error.response?.data;
-             let errorMessage = error.message;
-             let errorDetails = JSON.stringify(apiErrorData || {});
-
-             if (typeof apiErrorData === 'object' && apiErrorData !== null && 'error' in apiErrorData) {
-                if (typeof (apiErrorData as any).error === 'string') {
-                    errorMessage = (apiErrorData as any).error;
-                } else if (typeof (apiErrorData as any).error === 'object' && (apiErrorData as any).error !== null && 'message' in (apiErrorData as any).error) {
-                    errorMessage = (apiErrorData as any).error.message;
+            
+             let errorData = error.response?.data;
+            // The data from axios might be a buffer if responseType was arraybuffer
+            if (errorData && Buffer.isBuffer(errorData)) {
+                try {
+                    const decoded = errorData.toString('utf-8');
+                    errorData = JSON.parse(decoded);
+                } catch (e) {
+                    errorData = errorData.toString('utf-8');
                 }
-             } else if (typeof apiErrorData === 'string') {
-                errorMessage = apiErrorData;
+            }
+             
+             let errorMessage = error.message;
+             let errorDetails = JSON.stringify(errorData || {});
+
+             if (typeof errorData === 'object' && errorData !== null && 'error' in errorData) {
+                if (typeof (errorData as any).error === 'string') {
+                    errorMessage = (errorData as any).error;
+                } else if (typeof (errorData as any).error === 'object' && (errorData as any).error !== null && 'message' in (errorData as any).error) {
+                    errorMessage = (errorData as any).error.message;
+                }
+             } else if (typeof errorData === 'string') {
+                errorMessage = errorData;
              }
 
              errorResponse = {

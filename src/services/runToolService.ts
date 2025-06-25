@@ -243,7 +243,7 @@ export const runToolExecution = async (
         return {
             success: true,
             data: summarizedResult,
-            hint: `The output of the execution is permanently stored in the tenant's database in the table tool_` + getTableNameForApiTool(apiTool) + `.
+            hint: `The output of the execution is permanently stored in the tenant's database in the table ` + getTableNameForApiTool(apiTool) + `.
             You can access it anytime in the future by querying the database. This is useful especially when you want to attach SQL queries to dashboard blocks.`    
         };
 
